@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name }}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main>
+        <div class="card">
+            <div class="header">
+                <h1>{{ app_name }}</h1>
+                <span class="badge">v{{ version }}</span>
+                <span class="badge env-{{ environment }}">{{ environment }}</span>
+            </div>
+            <p class="description">FastAPI service running in Docker</p>
+            <div class="links">
+                <a href="/docs" class="link-btn">API Docs</a>
+                <!--  <a href="/health/live" class="link-btn secondary">Health</a> -->
+            </div>
+        </div>
+    </main>
+</body>
+</html>

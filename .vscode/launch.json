@@ -1,0 +1,53 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Standard run with hot-reload. 
+      "name": "Run: uvicorn (reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload"
+      ],
+      "env": {
+        "PYTHONPATH": "/app/src"
+      },
+      "jinja": true,
+      "justMyCode": true
+    },
+    {
+      // Debug run — breakpoints work, but --reload is disabled.
+      "name": "Debug: uvicorn (no reload)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host", "0.0.0.0",
+        "--port", "8000"
+      ],
+      "env": {
+        "PYTHONPATH": "/app/src"
+      },
+      "jinja": true,
+      "justMyCode": false
+    },
+    {
+      // -------------------------------------------------------
+      // Run main.py directly — for `if __name__ == "__main__": uvicorn.run(...)` block.
+      "name": "Debug: main.py",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "/app/src/app/main.py",
+      "env": {
+        "PYTHONPATH": "/app/src"
+      },
+      "jinja": true,
+      "justMyCode": false
+    }
+  ]
+}

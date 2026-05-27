@@ -1,0 +1,35 @@
+{
+    "name": "Docker Development Template",
+    "dockerComposeFile": ["../docker-compose.yml"],
+    "service": "app",
+    "workspaceFolder": "/app",
+    "shutdownAction": "stopCompose",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.debugpy",
+                "ms-python.black-formatter",
+                "ms-python.isort",
+                "esbenp.prettier-vscode"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/venv/bin/python3",
+                "python.languageServer": "Pylance",
+                "editor.formatOnSave": false,
+                "editor.defaultFormatter": "ms-python.black-formatter",
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "explicit"
+                },
+                "isort.args": ["--profile", "black"],
+                "[json]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                },
+                "[jsonc]": {
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                }
+            }
+        }
+    }
+}

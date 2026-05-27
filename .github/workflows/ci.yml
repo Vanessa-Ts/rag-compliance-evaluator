@@ -1,0 +1,58 @@
+name: CI
+
+
+on:
+  push:
+    branches:
+      - "**"
+
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build test image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          load: true
+          tags: docker-dev-template:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run tests
+        run: |
+          docker run --name test_container docker-dev-template:latest
+          
+      - name: Extract reports
+        if: always()
+        run: |
+          mkdir -p reports
+          docker cp test_container:/app/coverage.xml reports/coverage.xml
+          docker cp test_container:/app/report.xml reports/report.xml
+
+      - name: Cleanup container
+        if: always()
+        run: docker rm test_container
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: reports/coverage.xml
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report
+          path: reports/report.xml
