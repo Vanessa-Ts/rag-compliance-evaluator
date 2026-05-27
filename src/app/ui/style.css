@@ -80,3 +80,107 @@ h1 {
 }
 
 .link-btn.secondary:hover { background: #3d4268; }
+
+main { display: flex; flex-direction: column; gap: 1.25rem; }
+main { max-width: 720px; }
+
+h2 { font-size: 1.1rem; font-weight: 600; color: #f8fafc; margin-bottom: 1rem; }
+
+.input-row {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.4rem;
+    border: 1px solid #2d3148;
+    background: #0f1117;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+}
+
+input[type="text"]:focus { outline: none; border-color: #3b5bdb; }
+
+select {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.4rem;
+    border: 1px solid #2d3148;
+    background: #0f1117;
+    color: #e2e8f0;
+    font-size: 0.9rem;
+}
+
+button {
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.4rem;
+    border: none;
+    background: #3b5bdb;
+    color: #f8fafc;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+button:hover:not(:disabled) { background: #4c6ef5; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.hidden { display: none; }
+
+.answer-text {
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 0.4rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-top: 0.75rem;
+    white-space: pre-wrap;
+}
+
+.meta {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.5rem;
+}
+
+.citations { list-style: none; margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+
+.citations li {
+    background: #0f1117;
+    border: 1px solid #2d3148;
+    border-radius: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.citations a { color: #60a5fa; text-decoration: none; }
+.citations a:hover { text-decoration: underline; }
+.score { color: #64748b; font-size: 0.75rem; margin-left: 0.5rem; }
+.snippet { color: #94a3b8; font-size: 0.8rem; margin-top: 0.25rem; }
+
+.error {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.4rem;
+    background: #3a1a1a;
+    color: #f87171;
+    font-size: 0.85rem;
+}
+
+.metrics-table { border-collapse: collapse; width: 100%; margin-top: 0.75rem; }
+.metrics-table th, .metrics-table td {
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #2d3148;
+    font-size: 0.875rem;
+}
+.metrics-table th { text-align: left; color: #94a3b8; background: #0f1117; }
+.metrics-table td { color: #f8fafc; }
+
+details { margin-top: 0.75rem; }
+summary { cursor: pointer; font-size: 0.85rem; color: #64748b; }
+details pre { font-size: 0.75rem; overflow-x: auto; margin-top: 0.5rem; color: #94a3b8; }

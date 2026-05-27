@@ -14,12 +14,50 @@
                 <span class="badge">v{{ version }}</span>
                 <span class="badge env-{{ environment }}">{{ environment }}</span>
             </div>
-            <p class="description">FastAPI service running in Docker</p>
+            <p class="description">Multi-jurisdiction employment compliance Q&amp;A with retrieval evaluation</p>
             <div class="links">
                 <a href="/docs" class="link-btn">API Docs</a>
-                <!--  <a href="/health/live" class="link-btn secondary">Health</a> -->
             </div>
         </div>
+
+        <!-- Ask -->
+        <div class="card">
+            <h2>Ask a compliance question</h2>
+            <div class="input-row">
+                <input id="question" type="text" placeholder="e.g. What is the maximum weekly working time in the EU?" />
+                <select id="jurisdiction">
+                    <option value="">Any jurisdiction</option>
+                    <option value="EU">EU</option>
+                    <option value="DE">Germany</option>
+                    <option value="FR">France</option>
+                    <option value="ES">Spain</option>
+                    <option value="NL">Netherlands</option>
+                </select>
+                <button id="ask-btn" onclick="askQuestion()">Ask</button>
+            </div>
+            <div id="answer-box" class="hidden">
+                <div class="answer-text" id="answer-text"></div>
+                <div class="meta" id="answer-meta"></div>
+                <div id="citations"></div>
+            </div>
+            <div id="ask-error" class="error hidden"></div>
+        </div>
+
+        <!-- Evaluate -->
+        <div class="card">
+            <h2>Retrieval evaluation</h2>
+            <p class="description">Runs the golden Q&amp;A set through the pipeline and measures precision@k, faithfulness, and latency.</p>
+            <button id="eval-btn" onclick="runEval()">Run evaluation</button>
+            <div id="eval-box" class="hidden">
+                <div id="eval-summary"></div>
+                <details>
+                    <summary>Per-question results</summary>
+                    <div id="eval-detail"></div>
+                </details>
+            </div>
+            <div id="eval-error" class="error hidden"></div>
+        </div>
     </main>
+    <script src="/static/app.js"></script>
 </body>
 </html>
