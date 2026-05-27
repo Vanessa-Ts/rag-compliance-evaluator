@@ -1,12 +1,18 @@
 {
-    "name": "Docker Development Template",
+    "name": "RAG Compliance Evaluator",
     "dockerComposeFile": ["../docker-compose.yml"],
     "service": "app",
     "workspaceFolder": "/app",
     "shutdownAction": "stopCompose",
+    "mounts": [
+        "source=claude-code-config-${devcontainerId},target=/home/appuser/.claude,type=volume"
+    ],
+    "remoteUser": "appuser",
+    "postCreateCommand": "uv sync --frozen --group dev",
     "customizations": {
         "vscode": {
             "extensions": [
+                "anthropic.claude-code",
                 "ms-python.python",
                 "ms-python.vscode-pylance",
                 "ms-python.debugpy",

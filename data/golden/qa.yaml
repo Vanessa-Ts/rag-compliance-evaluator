@@ -1,0 +1,75 @@
+# Golden evaluation set for the multi-jurisdiction employment-law RAG service.
+# Each item's expected_doc_ids reference real doc_ids from data/corpus/README.md.
+# Reference answers are factually grounded in the corresponding corpus documents.
+
+- id: q1
+  question: "What is the EU maximum average working week under the Working Time Directive?"
+  jurisdiction: EU
+  expected_doc_ids: [eu-working-time-directive]
+  reference_answer: "An average of 48 hours per seven-day period, including overtime, normally calculated over a reference period of up to four months."
+
+- id: q2
+  question: "How much paid annual leave does the EU Working Time Directive guarantee?"
+  jurisdiction: EU
+  expected_doc_ids: [eu-working-time-directive]
+  reference_answer: "At least four weeks of paid annual leave (20 days for a five-day working week), which cannot be replaced by a payment in lieu except when the employment relationship is terminated."
+
+- id: q3
+  question: "Within what time must a personal data breach generally be reported to the supervisory authority under the GDPR?"
+  jurisdiction: EU
+  expected_doc_ids: [gdpr-employee-data-basics]
+  reference_answer: "Personal data breaches must generally be reported to the supervisory authority within 72 hours, with affected individuals notified where there is a high risk."
+
+- id: q4
+  question: "Why is employee consent rarely an appropriate lawful basis for processing employee data under the GDPR?"
+  jurisdiction: EU
+  expected_doc_ids: [gdpr-employee-data-basics]
+  reference_answer: "Because of the imbalance of power between employer and employee, consent is unlikely to be 'freely given'; employers more commonly rely on performance of the employment contract, compliance with a legal obligation, or legitimate interests."
+
+- id: q5
+  question: "How long must German employers continue paying wages during an employee's illness?"
+  jurisdiction: DE
+  expected_doc_ids: [de-labor-law-overview]
+  reference_answer: "German employers must continue paying wages (Entgeltfortzahlung) for up to six weeks during illness; thereafter statutory health insurance pays sickness benefit."
+
+- id: q6
+  question: "What is the standard maximum daily working time under the German Working Hours Act?"
+  jurisdiction: DE
+  expected_doc_ids: [de-labor-law-overview]
+  reference_answer: "The standard maximum is eight hours per working day, extendable to ten hours provided the average over six months (24 weeks) does not exceed eight hours per day."
+
+- id: q7
+  question: "What is the statutory legal working time per week in France and how are extra hours treated?"
+  jurisdiction: FR
+  expected_doc_ids: [fr-labor-law-overview]
+  reference_answer: "The statutory legal working time is 35 hours per week; it is a threshold, not a maximum, and hours worked beyond 35 are overtime paid at an increased rate (typically +25% for the first eight hours and +50% thereafter)."
+
+- id: q8
+  question: "What severance applies to an unfair dismissal in Spain?"
+  jurisdiction: ES
+  expected_doc_ids: [es-labor-law-overview]
+  reference_answer: "For an unfair dismissal (despido improcedente) the employer chooses between reinstatement or paying severance of 33 days' salary per year of service, capped at 24 monthly payments."
+
+- id: q9
+  question: "Under the Spanish Workers' Statute, what is the maximum ordinary weekly working time?"
+  jurisdiction: ES
+  expected_doc_ids: [es-labor-law-overview]
+  reference_answer: "Maximum ordinary working time is 40 hours per week averaged over the year, with overtime generally capped at 80 hours per year."
+
+- id: q10
+  question: "How is the Dutch statutory transition payment calculated on termination?"
+  jurisdiction: NL
+  expected_doc_ids: [nl-labor-law-overview]
+  reference_answer: "The transition payment (transitievergoeding) accrues from the first day of employment and is calculated as one-third of a month's salary per year of service, subject to a statutory maximum."
+
+- id: q11
+  question: "Under the Dutch chain rule, when do successive fixed-term contracts convert into an open-ended contract?"
+  jurisdiction: NL
+  expected_doc_ids: [nl-labor-law-overview]
+  reference_answer: "Under the chain rule (ketenregeling), successive fixed-term contracts convert into an open-ended contract once they exceed three contracts or three years, with breaks shorter than six months counting toward the chain."
+
+- id: q12
+  question: "How much parental leave does the EU Work-Life Balance Directive provide, and how much is non-transferable?"
+  jurisdiction: EU
+  expected_doc_ids: [eu-parental-leave]
+  reference_answer: "Each worker has an individual right to at least four months of parental leave, of which two months are non-transferable between parents and are lost if not used."

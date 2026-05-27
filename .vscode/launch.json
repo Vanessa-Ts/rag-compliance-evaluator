@@ -1,8 +1,8 @@
 {
-  "version": "0.2.0",
+  "version": "0.1.0",
   "configurations": [
     {
-      // Standard run with hot-reload. 
+      // Fast dev server. 
       "name": "Run: uvicorn (reload)",
       "type": "debugpy",
       "request": "launch",
@@ -20,7 +20,7 @@
       "justMyCode": true
     },
     {
-      // Debug run — breakpoints work, but --reload is disabled.
+      // Debug run - breakpoints work, but --reload is disabled.
       "name": "Debug: uvicorn (no reload)",
       "type": "debugpy",
       "request": "launch",
@@ -38,7 +38,7 @@
     },
     {
       // -------------------------------------------------------
-      // Run main.py directly — for `if __name__ == "__main__": uvicorn.run(...)` block.
+      // Debug main.py directly - for `if __name__ == "__main__": uvicorn.run(...)` block.
       "name": "Debug: main.py",
       "type": "debugpy",
       "request": "launch",

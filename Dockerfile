@@ -8,7 +8,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && \
     apt-get full-upgrade -y && \
-    apt-get install -y --no-install-recommends locales tzdata && \
+    apt-get install -y --no-install-recommends locales tzdata curl ca-certificates make git && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
     ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && \
@@ -55,6 +55,8 @@ RUN uv sync --frozen --no-cache --group dev && \
     uv cache clean
 
 USER appuser
+RUN curl -fsSL https://claude.ai/install.sh | bash
+ENV PATH="/home/appuser/.local/bin:$PATH"
 
 CMD ["sleep", "infinity"]
 
@@ -93,6 +95,6 @@ CMD ["pytest", "tests/", \
 #     PYTHONUNBUFFERED=1
 
 
-# EXPOSE 8000
+# EXPOSE 8080
 #
-# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]

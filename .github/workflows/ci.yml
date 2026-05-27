@@ -24,13 +24,13 @@ jobs:
           context: .
           target: test
           load: true
-          tags: docker-dev-template:latest
+          tags: rag-compliance-evaluator:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Run tests
         run: |
-          docker run --name test_container docker-dev-template:latest
+          docker run --name test_container rag-compliance-evaluator:latest
           
       - name: Extract reports
         if: always()

@@ -1,4 +1,4 @@
-# docker-dev-template
+# rag-compliance-evaluator
 
 A containerized Python development template for building web services with FastAPI, Docker Compose multi-stage builds, and `uv` for dependency management.
 
@@ -32,6 +32,11 @@ uv sync
 python src/app/main.py
 
 Open the repo in VS Code and use "Reopen in Container" - the .devcontainer/devcontainer.json handles the rest. Start the web service via the provided launch.json debug configuration.
+
+#### 4. One-time: pull the local LLM model for Ollama
+The `ollama` service provides free local LLM generation. After `docker compose up`, pull the model once (it persists in the `ollama_models` volume):
+
+    docker compose exec ollama ollama pull llama3.2:3b
 
 
 

@@ -9,4 +9,4 @@ def test_index_returns_200():
 
 def test_index_contains_app_name():
     response = client.get("/")
-    assert "docker-dev-template" in response.text
+    assert "rag-compliance-evaluator" in response.text

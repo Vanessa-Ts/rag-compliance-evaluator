@@ -113,3 +113,13 @@ venv.bak/
 
 # Project-specific
 TODO.md
+.claude/settings.local.json
+report.xml
+.claude/
+
+# Layout Hound: model artifacts, eval/training outputs, dataset caches, HF cache
+artifacts/
+# Only the generated vector store is ignored; data/corpus and data/golden are tracked deliverables.
+data/chroma/
+.cache/
+
