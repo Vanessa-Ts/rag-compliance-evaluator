@@ -68,6 +68,7 @@ class EvalRequest(BaseModel):
 class EvalItemResult(BaseModel):
     id: str
     question: str
+    jurisdiction: str
     precision_at_k: float
     hit: bool
     faithful: bool

@@ -50,6 +50,7 @@ def _make_eval_response() -> EvalResponse:
             EvalItemResult(
                 id="q1",
                 question="How many hours?",
+                jurisdiction="EU",
                 precision_at_k=0.75,
                 hit=True,
                 faithful=True,
@@ -138,3 +139,47 @@ def test_health_ready_when_indexed(client: TestClient) -> None:
         resp = client.get("/health/ready")
     assert resp.status_code == 200
     assert resp.json()["vectors"] == 37
+
+
+def test_health_ready_503_when_empty(client: TestClient) -> None:
+    with patch("app.rag.store.collection_count", return_value=0):
+        resp = client.get("/health/ready")
+    assert resp.status_code == 503
+
+
+# ---------- SSE stream endpoint ----------
+
+def test_evaluate_stream_404_when_job_not_found(client: TestClient) -> None:
+    with patch("app.api.routes_eval.get_job", return_value=None):
+        resp = client.get("/evaluate/stream/nonexistent-job-id")
+    assert resp.status_code == 404
+
+
+def test_evaluate_stream_returns_sse_events_for_completed_job(client: TestClient) -> None:
+    from app.eval.runner import JobState
+
+    item = EvalItemResult(
+        id="q1",
+        question="Max weekly hours?",
+        jurisdiction="EU",
+        precision_at_k=1.0,
+        hit=True,
+        faithful=True,
+        faithfulness_score=0.95,
+        latency_ms=110.0,
+        retrieved_doc_ids=["eu-working-time-directive"],
+    )
+    job = JobState(n_total=1)
+    job.results.append(item)
+    job.done = True
+    job.response = _make_eval_response()
+
+    with patch("app.api.routes_eval.get_job", return_value=job):
+        resp = client.get("/evaluate/stream/test-job-id")
+
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers["content-type"]
+    body = resp.text
+    assert '"event": "progress"' in body
+    assert '"event": "done"' in body
+    assert "eu-working-time-directive" in body

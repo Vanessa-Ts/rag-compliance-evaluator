@@ -58,6 +58,7 @@ async def _eval_one(item: object, k: int, generator: object) -> EvalItemResult:
     return EvalItemResult(
         id=item.id,
         question=item.question,
+        jurisdiction=item.jurisdiction,
         precision_at_k=prec,
         hit=hit,
         faithful=faithful,

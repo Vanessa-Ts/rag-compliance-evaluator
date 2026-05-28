@@ -5,33 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ app_name }}</title>
     <link rel="stylesheet" href="/static/style.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js" crossorigin="anonymous"></script>
 </head>
 <body>
-    <main>
-        <div class="card">
-            <div class="header">
-                <h1>{{ app_name }}</h1>
-                <span class="badge">v{{ version }}</span>
-                <span class="badge env-{{ environment }}">{{ environment }}</span>
-            </div>
-            <p class="hero-subtitle">Multi-jurisdiction employment compliance Q&amp;A<br>with retrieval precision &amp; faithfulness evaluation</p>
-            <div class="badge-row">
-                <span class="badge tech-badge">FastAPI</span>
-                <span class="badge tech-badge">ChromaDB</span>
-                <span class="badge tech-badge">LangChain</span>
-                <span class="badge tech-badge">sentence-transformers</span>
-            </div>
-            <div class="links">
-                <a href="/docs" class="link-btn">API Docs</a>
-            </div>
+
+    <!-- Hero -->
+    <div class="hero">
+        <h1>{{ app_name }}</h1>
+        <p class="hero-desc">Multi-jurisdiction employment compliance Q&amp;A with retrieval precision &amp; faithfulness evaluation</p>
+        <div class="hero-meta">
+            <span class="badge">v{{ version }}</span>
+            <span class="badge env-{{ environment }}">{{ environment }}</span>
+            <a href="/docs" class="link-btn hero-docs-btn" target="_blank" rel="noopener">API Docs ↗</a>
         </div>
+    </div>
+
+    <!-- Cards -->
+    <main class="cards-grid">
 
         <!-- Ask -->
         <div class="card">
-            <h2>Ask a compliance question</h2>
-            <div class="input-row">
-                <input id="question" type="text" placeholder="e.g. What is the maximum weekly working time in the EU?" />
-                <select id="jurisdiction">
+            <h2>Ask a question</h2>
+            <p class="card-desc">Get a cited, jurisdiction-aware answer from the compliance knowledge base.</p>
+
+            <label for="question" class="sr-only">Compliance question</label>
+            <textarea id="question" rows="3"
+                placeholder="e.g. What is the maximum weekly working time in the EU?"></textarea>
+
+            <div class="ask-controls">
+                <select id="jurisdiction" aria-label="Filter by jurisdiction">
                     <option value="">Any jurisdiction</option>
                     <option value="EU">EU</option>
                     <option value="DE">Germany</option>
@@ -41,35 +43,94 @@
                 </select>
                 <button id="ask-btn" onclick="askQuestion()">Ask</button>
             </div>
+
             <div class="chip-row">
                 <span class="chip-label">Try:</span>
-                <button class="link-btn secondary chip" onclick="fillSample('What is the maximum weekly working time in the EU?')">Max EU working hours?</button>
-                <button class="link-btn secondary chip" onclick="fillSample('What are the GDPR right to erasure requirements for employers?')">GDPR right to erasure?</button>
-                <button class="link-btn secondary chip" onclick="fillSample('What is the notice period for termination in Germany?')">German notice period?</button>
+                <button class="chip" onclick="fillSample('What is the maximum weekly working time in the EU?')">Max EU working hours?</button>
+                <button class="chip" onclick="fillSample('What are the GDPR right to erasure requirements for employers?')">GDPR right to erasure?</button>
+                <button class="chip" onclick="fillSample('What is the notice period for termination in Germany?')">German notice period?</button>
             </div>
-            <div id="answer-box" class="hidden">
-                <div class="answer-text" id="answer-text"></div>
+
+            <!-- Skeleton -->
+            <div id="ask-skeleton" class="skeleton-wrap hidden" aria-hidden="true">
+                <div class="skeleton skeleton-line-lg"></div>
+                <div class="skeleton skeleton-line-md"></div>
+                <div class="skeleton skeleton-line-sm"></div>
+                <div class="skeleton skeleton-line-md"></div>
+            </div>
+
+            <!-- Answer -->
+            <div id="answer-box" class="hidden" aria-live="polite">
+                <div class="answer-header">
+                    <span class="answer-label">Answer</span>
+                    <button class="icon-btn" onclick="copyAnswer()" title="Copy" aria-label="Copy answer">⧉</button>
+                </div>
+                <div class="answer-text prose" id="answer-text"></div>
                 <div class="meta" id="answer-meta"></div>
                 <div id="citations"></div>
             </div>
-            <div id="ask-error" class="error hidden"></div>
+
+            <div id="ask-error" class="error hidden" role="alert"></div>
         </div>
 
         <!-- Evaluate -->
         <div class="card">
             <h2>Retrieval evaluation</h2>
-            <p class="description">Runs the golden Q&amp;A set through the pipeline and measures precision@k, faithfulness, and latency.</p>
-            <button id="eval-btn" onclick="runEval()">Run evaluation</button>
+            <p class="card-desc">Run the golden Q&amp;A set through the pipeline and measure precision@k, faithfulness, and latency.</p>
+
+            <div class="eval-actions">
+                <button id="eval-btn" onclick="runEval()">▶ Run evaluation</button>
+                <button id="last-btn" onclick="loadLastEval()">↺ View last result</button>
+            </div>
+
+            <!-- Progress -->
+            <div id="eval-progress" class="progress-section hidden" role="status" aria-live="polite">
+                <div class="progress-label" id="eval-progress-text">Running…</div>
+                <div class="progress-bar-wrap">
+                    <div id="eval-bar" class="progress-bar-fill progress-bar-shimmer"></div>
+                </div>
+            </div>
+
+            <!-- Results -->
             <div id="eval-box" class="hidden">
-                <div id="eval-summary"></div>
+                <div class="metric-cards">
+                    <div class="metric-card" id="mc-precision">
+                        <div class="metric-label">Precision@k</div>
+                        <div class="metric-value" id="mv-precision">—</div>
+                        <div class="metric-target">≥ 80% target</div>
+                    </div>
+                    <div class="metric-card" id="mc-hitrate">
+                        <div class="metric-label">Hit rate@k</div>
+                        <div class="metric-value" id="mv-hitrate">—</div>
+                        <div class="metric-target">≥ 80% target</div>
+                    </div>
+                    <div class="metric-card" id="mc-faithful">
+                        <div class="metric-label">Faithfulness</div>
+                        <div class="metric-value" id="mv-faithful">—</div>
+                        <div class="metric-target">≥ 75% target</div>
+                    </div>
+                    <div class="metric-card" id="mc-latency">
+                        <div class="metric-label">p95 latency</div>
+                        <div class="metric-value" id="mv-latency">—</div>
+                        <div class="metric-target">≤ 1 000 ms target</div>
+                    </div>
+                </div>
+
+                <div class="meta" id="eval-meta"></div>
+
                 <details>
                     <summary>Per-question results</summary>
                     <div id="eval-detail"></div>
                 </details>
             </div>
-            <div id="eval-error" class="error hidden"></div>
+
+            <div id="eval-error" class="error hidden" role="alert"></div>
         </div>
+
     </main>
+
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
     <script src="/static/app.js"></script>
 </body>
 </html>

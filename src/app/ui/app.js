@@ -1,8 +1,100 @@
-function fillSample(text) {
-  const input = document.getElementById("question");
-  input.value = text;
-  input.focus();
+// ── Utilities ────────────────────────────────────────────────────────────────
+
+function showEl(id) { document.getElementById(id).classList.remove("hidden"); }
+function hideEl(id) { document.getElementById(id).classList.add("hidden"); }
+
+function showToast(msg, ms = 1500) {
+  const toast = document.getElementById("toast");
+  toast.textContent = msg;
+  toast.classList.remove("hidden");
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.add("hidden"), ms);
 }
+
+function animateValue(el, target, suffix, duration = 600) {
+  const start = performance.now();
+  function step(now) {
+    const pct = Math.min((now - start) / duration, 1);
+    const eased = 1 - Math.pow(1 - pct, 3);
+    const val = target * eased;
+    el.textContent = (suffix === " ms" ? val.toFixed(0) : val.toFixed(1)) + suffix;
+    if (pct < 1) requestAnimationFrame(step);
+    else el.textContent = (suffix === " ms" ? target.toFixed(0) : target.toFixed(1)) + suffix;
+  }
+  requestAnimationFrame(step);
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+
+function showSkeleton() {
+  hideEl("answer-box");
+  hideEl("ask-error");
+  showEl("ask-skeleton");
+}
+
+function hideSkeleton() {
+  hideEl("ask-skeleton");
+}
+
+// ── Sample chips ─────────────────────────────────────────────────────────────
+
+function fillSample(text) {
+  const ta = document.getElementById("question");
+  ta.value = text;
+  ta.focus();
+}
+
+// ── Copy answer ──────────────────────────────────────────────────────────────
+
+function copyAnswer() {
+  const text = document.getElementById("answer-text").innerText;
+  navigator.clipboard.writeText(text).then(() => showToast("Copied to clipboard"));
+}
+
+// ── Citations ─────────────────────────────────────────────────────────────────
+
+const JURISDICTION_COLORS = {
+  EU: "#60a5fa", DE: "#4ade80", FR: "#a78bfa",
+  ES: "#fb923c", NL: "#34d399",
+};
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function renderCitations(citations) {
+  const container = document.getElementById("citations");
+  container.innerHTML = "";
+  if (!citations || !citations.length) return;
+
+  const list = document.createElement("div");
+  list.className = "citation-list";
+
+  citations.forEach((c) => {
+    const card = document.createElement("div");
+    card.className = "citation-card";
+    card.style.borderLeftColor = JURISDICTION_COLORS[c.jurisdiction] || "var(--border)";
+
+    const scorePct = Math.round(Math.max(0, Math.min(1, c.score)) * 100);
+    card.innerHTML = `
+      <div class="citation-card-header">
+        <a href="${escHtml(c.source_url)}" target="_blank" rel="noopener">${escHtml(c.title)}</a>
+        <span class="badge">${escHtml(c.jurisdiction)}</span>
+      </div>
+      <div class="score-bar-wrap">
+        <div class="score-bar-track"><div class="score-bar-fill" style="width:${scorePct}%"></div></div>
+        <span class="score-label">score ${c.score.toFixed(3)}</span>
+      </div>
+      <div class="snippet">${escHtml(c.snippet)}</div>`;
+    list.appendChild(card);
+  });
+
+  container.appendChild(list);
+}
+
+// ── Ask ───────────────────────────────────────────────────────────────────────
 
 async function askQuestion() {
   const question = document.getElementById("question").value.trim();
@@ -10,13 +102,10 @@ async function askQuestion() {
 
   const jurisdiction = document.getElementById("jurisdiction").value || null;
   const btn = document.getElementById("ask-btn");
-  const answerBox = document.getElementById("answer-box");
-  const errorBox = document.getElementById("ask-error");
 
   btn.disabled = true;
   btn.textContent = "Asking…";
-  answerBox.classList.add("hidden");
-  errorBox.classList.add("hidden");
+  showSkeleton();
 
   try {
     const resp = await fetch("/query", {
@@ -30,45 +119,191 @@ async function askQuestion() {
     }
     const data = await resp.json();
 
-    document.getElementById("answer-text").textContent = data.answer;
+    const answerEl = document.getElementById("answer-text");
+    answerEl.innerHTML = (typeof marked !== "undefined")
+      ? marked.parse(data.answer)
+      : escHtml(data.answer).replace(/\n/g, "<br>");
+
     document.getElementById("answer-meta").textContent =
       `Provider: ${data.provider} · Model: ${data.model} · ${data.latency_ms.toFixed(0)} ms`;
 
-    const citeEl = document.getElementById("citations");
-    citeEl.innerHTML = "";
-    if (data.citations && data.citations.length) {
-      const ul = document.createElement("ul");
-      ul.className = "citations";
-      data.citations.forEach((c) => {
-        const li = document.createElement("li");
-        li.innerHTML = `<a href="${c.source_url}" target="_blank">${c.title}</a>
-          <span class="badge">${c.jurisdiction}</span>
-          <span class="score">score ${c.score.toFixed(3)}</span>
-          <div class="snippet">${c.snippet}</div>`;
-        ul.appendChild(li);
-      });
-      citeEl.appendChild(ul);
-    }
+    renderCitations(data.citations);
 
-    answerBox.classList.remove("hidden");
+    const box = document.getElementById("answer-box");
+    box.classList.remove("hidden", "fadein");
+    void box.offsetWidth;
+    box.classList.add("fadein");
   } catch (e) {
-    errorBox.textContent = e.message;
-    errorBox.classList.remove("hidden");
+    document.getElementById("ask-error").textContent = e.message;
+    showEl("ask-error");
   } finally {
+    hideSkeleton();
     btn.disabled = false;
     btn.textContent = "Ask";
   }
 }
 
+document.getElementById("question").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); askQuestion(); }
+});
+
+// ── Eval progress ─────────────────────────────────────────────────────────────
+
+let _evalStart = 0;
+
+function setProgress(done, total) {
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById("eval-bar").style.width = pct + "%";
+
+  let etaStr = "";
+  if (done > 0 && done < total) {
+    const elapsed = (Date.now() - _evalStart) / 1000;
+    const remaining = Math.round((elapsed / done) * (total - done));
+    etaStr = ` · ~${remaining}s left`;
+  }
+  document.getElementById("eval-progress-text").textContent =
+    `Running… ${done} / ${total}  (${pct}%)${etaStr}`;
+}
+
+// ── Metric coloring ───────────────────────────────────────────────────────────
+
+function colorMetricCard(cardId, value, goodThresh, warnThresh, invert = false) {
+  const card = document.getElementById(cardId);
+  card.classList.remove("metric-good", "metric-warn", "metric-bad");
+  let cls;
+  if (!invert) {
+    cls = value >= goodThresh ? "metric-good" : value >= warnThresh ? "metric-warn" : "metric-bad";
+  } else {
+    cls = value <= goodThresh ? "metric-good" : value <= warnThresh ? "metric-warn" : "metric-bad";
+  }
+  card.classList.add(cls);
+}
+
+// ── Sort table ────────────────────────────────────────────────────────────────
+
+const _sortState = { col: -1, dir: 1 };
+
+function sortTable(colIndex) {
+  const tbody = document.querySelector("#eval-detail tbody");
+  if (!tbody) return;
+
+  _sortState.dir = (_sortState.col === colIndex) ? _sortState.dir * -1 : 1;
+  _sortState.col = colIndex;
+
+  document.querySelectorAll("#eval-detail th.sortable").forEach((th, i) => {
+    th.classList.remove("sort-asc", "sort-desc");
+    const icon = th.querySelector(".sort-icon");
+    if (i === colIndex) {
+      th.classList.add(_sortState.dir === 1 ? "sort-asc" : "sort-desc");
+      if (icon) icon.textContent = _sortState.dir === 1 ? "▲" : "▼";
+    } else {
+      if (icon) icon.textContent = "⇅";
+    }
+  });
+
+  const rows = Array.from(tbody.querySelectorAll("tr.data-row"));
+  rows.sort((a, b) => {
+    const av = a.cells[colIndex]?.dataset.sort ?? a.cells[colIndex]?.textContent ?? "";
+    const bv = b.cells[colIndex]?.dataset.sort ?? b.cells[colIndex]?.textContent ?? "";
+    const an = parseFloat(av), bn = parseFloat(bv);
+    if (!isNaN(an) && !isNaN(bn)) return (an - bn) * _sortState.dir;
+    return av.localeCompare(bv) * _sortState.dir;
+  });
+
+  rows.forEach(row => {
+    tbody.appendChild(row);
+    const next = row.nextSibling;
+    if (next && next.classList && next.classList.contains("expanded-row")) tbody.appendChild(next);
+  });
+}
+
+function toggleRow(i) {
+  const row = document.getElementById(`expanded-${i}`);
+  const btn = document.getElementById(`expand-${i}`);
+  const open = row.classList.toggle("open");
+  btn.classList.toggle("open", open);
+  btn.setAttribute("aria-expanded", String(open));
+}
+
+// ── Render eval results ───────────────────────────────────────────────────────
+
+function renderEvalResults(summary, config, timestamp, perQuestion, animate = true) {
+  const s = summary;
+
+  colorMetricCard("mc-precision", s.retrieval_precision_at_k, 0.8, 0.5);
+  colorMetricCard("mc-hitrate",   s.hit_rate_at_k,            0.8, 0.5);
+  colorMetricCard("mc-faithful",  s.mean_faithfulness,        0.75, 0.5);
+  colorMetricCard("mc-latency",   s.p95_latency_ms,           1000, 2500, true);
+
+  const set = (id, val, suffix) => {
+    const el = document.getElementById(id);
+    if (animate) animateValue(el, val, suffix);
+    else el.textContent = (suffix === " ms" ? val.toFixed(0) : val.toFixed(1)) + suffix;
+  };
+
+  set("mv-precision", s.retrieval_precision_at_k * 100, "%");
+  set("mv-hitrate",   s.hit_rate_at_k * 100,            "%");
+  set("mv-faithful",  s.mean_faithfulness * 100,        "%");
+  set("mv-latency",   s.p95_latency_ms,                 " ms");
+
+  document.getElementById("eval-meta").textContent =
+    `${s.n} questions · Provider: ${config.provider} · Model: ${config.model} · k=${config.k} · ${timestamp}`;
+
+  const detail = document.getElementById("eval-detail");
+  if (perQuestion && perQuestion.length) {
+    const rows = perQuestion.map((q, i) => {
+      const q_short = q.question.length > 52 ? q.question.slice(0, 52) + "…" : q.question;
+      const docIds = (q.retrieved_doc_ids || []).join(", ") || "—";
+      return `
+        <tr class="data-row">
+          <td><button class="expand-btn" onclick="toggleRow(${i})" id="expand-${i}" aria-expanded="false" aria-label="Expand">›</button></td>
+          <td title="${escHtml(q.question)}" data-sort="${escHtml(q.question)}">${escHtml(q_short)}</td>
+          <td>${escHtml(q.jurisdiction || "—")}</td>
+          <td data-sort="${q.precision_at_k}">${(q.precision_at_k * 100).toFixed(0)}%</td>
+          <td class="${q.hit ? 'pass' : 'fail'}" data-sort="${q.hit ? 1 : 0}">${q.hit ? "✓" : "✗"}</td>
+          <td class="${q.faithful ? 'pass' : 'fail'}" data-sort="${q.faithful ? 1 : 0}">${q.faithful ? "✓" : "✗"}</td>
+          <td data-sort="${q.latency_ms}">${q.latency_ms.toFixed(0)}</td>
+        </tr>
+        <tr class="expanded-row" id="expanded-${i}">
+          <td colspan="7">Retrieved: ${escHtml(docIds)}</td>
+        </tr>`;
+    }).join("");
+
+    detail.innerHTML = `<div class="result-table-wrap">
+      <table class="result-table">
+        <thead><tr>
+          <th style="width:2rem"></th>
+          <th class="sortable" scope="col" onclick="sortTable(1)">Question<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(2)">Jur<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(3)">Prec@k<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(4)">Hit<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(5)">Faithful<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(6)">Lat ms<span class="sort-icon">⇅</span></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  } else {
+    detail.innerHTML = "";
+  }
+
+  showEl("eval-box");
+}
+
+// ── Run evaluation ────────────────────────────────────────────────────────────
+
 async function runEval() {
   const btn = document.getElementById("eval-btn");
-  const evalBox = document.getElementById("eval-box");
-  const errorBox = document.getElementById("eval-error");
 
+  _evalStart = Date.now();
   btn.disabled = true;
   btn.textContent = "Running…";
-  evalBox.classList.add("hidden");
-  errorBox.classList.add("hidden");
+  hideEl("eval-box");
+  hideEl("eval-error");
+  showEl("eval-progress");
+  setProgress(0, 0);
+
+  const perQuestion = [];
 
   try {
     const resp = await fetch("/evaluate", {
@@ -80,33 +315,60 @@ async function runEval() {
       const err = await resp.json();
       throw new Error(err.detail || resp.statusText);
     }
-    const data = await resp.json();
-    const s = data.summary;
+    const { job_id } = await resp.json();
 
-    document.getElementById("eval-summary").innerHTML = `
-      <table class="metrics-table">
-        <tr><th>Questions</th><td>${s.n}</td></tr>
-        <tr><th>Retrieval precision@k</th><td>${(s.retrieval_precision_at_k * 100).toFixed(1)}%</td></tr>
-        <tr><th>Hit rate@k</th><td>${(s.hit_rate_at_k * 100).toFixed(1)}%</td></tr>
-        <tr><th>Mean faithfulness</th><td>${(s.mean_faithfulness * 100).toFixed(1)}%</td></tr>
-        <tr><th>Mean latency</th><td>${s.mean_latency_ms.toFixed(0)} ms</td></tr>
-        <tr><th>p95 latency</th><td>${s.p95_latency_ms.toFixed(0)} ms</td></tr>
-      </table>
-      <div class="meta">Provider: ${data.config.provider} · Model: ${data.config.model} · k=${data.config.k} · ${data.timestamp}</div>`;
-
-    const detail = document.getElementById("eval-detail");
-    detail.innerHTML = "<pre>" + JSON.stringify(data.per_question, null, 2) + "</pre>";
-
-    evalBox.classList.remove("hidden");
+    await new Promise((resolve, reject) => {
+      const source = new EventSource(`/evaluate/stream/${job_id}`);
+      source.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.event === "progress") {
+          perQuestion.push(msg.result);
+          setProgress(msg.n_done, msg.n_total);
+        } else if (msg.event === "done") {
+          source.close();
+          hideEl("eval-progress");
+          renderEvalResults(msg.summary, msg.config, msg.timestamp, perQuestion, true);
+          resolve();
+        }
+      };
+      source.onerror = () => {
+        source.close();
+        reject(new Error("Stream connection lost. The evaluation may still be running — try View last result."));
+      };
+    });
   } catch (e) {
-    errorBox.textContent = e.message;
-    errorBox.classList.remove("hidden");
+    hideEl("eval-progress");
+    document.getElementById("eval-error").textContent = e.message;
+    showEl("eval-error");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Run evaluation";
+    btn.textContent = "▶ Run evaluation";
   }
 }
 
-document.getElementById("question").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") askQuestion();
-});
+// ── Load last eval ────────────────────────────────────────────────────────────
+
+async function loadLastEval() {
+  const btn = document.getElementById("last-btn");
+
+  btn.disabled = true;
+  btn.textContent = "Loading…";
+  hideEl("eval-box");
+  hideEl("eval-error");
+
+  try {
+    const resp = await fetch("/evaluate/last");
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.detail || resp.statusText);
+    }
+    const data = await resp.json();
+    renderEvalResults(data.summary, data.config, data.timestamp, data.per_question, false);
+  } catch (e) {
+    document.getElementById("eval-error").textContent = e.message;
+    showEl("eval-error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "↺ View last result";
+  }
+}
