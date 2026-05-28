@@ -21,6 +21,11 @@ dependencies = [
     "langchain-anthropic~=1.0.0",
     "langchain-openai~=1.2.0",
     "pyyaml>=6.0",
+    "torch", # pin to CPU index via [tool.uv.sources]
+]
+[tool.uv]
+override-dependencies = [
+    "triton ; sys_platform == 'never'",
 ]
 
 # sentence-transformers depends on torch. Pin to the CPU-only wheel (~200 MB
@@ -40,6 +45,7 @@ test = [
     "pytest-asyncio~=1.2.0",
     "pytest-cov~=7.1.0",
     "httpx~=0.28.0",
+    "httpx2>=2.2.0",
     "respx~=0.23.0",
 ]
 dev = [
@@ -58,6 +64,7 @@ where = ["src"]
 testpaths = ["tests"]
 pythonpath = ["src"]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = [
     "-v",
     "--cov=app",

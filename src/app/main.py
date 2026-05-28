@@ -83,8 +83,7 @@ async def readiness() -> JSONResponse:
 # --Routes--
 @app.get("/")
 async def index(request: Request) -> Response:
-    return templates.TemplateResponse("index.html", {
-        "request": request,
+    return templates.TemplateResponse(request, "index.html", {
         "app_name": settings.app_name,
         "version": settings.version,
         "environment": settings.environment,

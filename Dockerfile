@@ -25,7 +25,6 @@ ENV LANG=en_US.UTF-8 \
 
 WORKDIR /app
 
-COPY pyproject.toml uv.lock ./
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
@@ -33,26 +32,50 @@ ENV UV_COMPILE_BYTECODE=1 \
     UV_PROJECT_ENVIRONMENT=/venv \
     PYTHONPATH="/app/src"
 
-RUN uv venv -p /usr/local/bin/python3 /venv/ && \
-    chown -R appuser:appuser /venv
 
-# Builder
+# Deps
+# ============================================================
+FROM base AS deps
+
+COPY pyproject.toml uv.lock ./
+
+# Stub src so uv sync doesn't complain about missing project
+RUN mkdir -p src/app && \
+    touch src/app/__init__.py
+
+RUN uv venv -p /usr/local/bin/python3 /venv/ && \
+    uv sync --frozen --no-dev --no-install-project && \
+    uv cache clean
+
+
+# Builder (prod venv ready)
+# ============================================================
 FROM base AS builder
 
+COPY --from=deps /venv /venv
+COPY pyproject.toml uv.lock ./
 COPY src/ ./src/
 
+# Install the project itself (source only, deps already in venv)
 RUN uv sync --frozen --no-dev --no-cache
 
 
-# ============================================================
 # Dev
 # ============================================================
 FROM base AS development
 
-COPY src/ ./src/
+COPY --from=deps /venv /venv
+COPY pyproject.toml uv.lock ./
 
-RUN uv sync --frozen --no-cache --group dev && \
+# Stub for the extra group install
+RUN mkdir -p src/app && \
+    touch src/app/__init__.pyn
+
+# Layer on dev deps (pytest, ruff, mypy, etc. — torch already in venv)
+RUN uv sync --frozen --no-install-project --group dev && \
     uv cache clean
+
+COPY src/ ./src/
 
 USER appuser
 RUN curl -fsSL https://claude.ai/install.sh | bash
@@ -62,18 +85,23 @@ CMD ["sleep", "infinity"]
 
 
 # Test
+# ============================================================
+
 FROM base AS test
 
-# torch is ~1.5 GB; with UV_COMPILE_BYTECODE=1 (inherited from base) another
-# ~1.5 GB of .pyc files would be generated, exhausting disk on CI runners.
-# Tests don't benefit from precompiled bytecode, so disable it here.
+COPY --from=deps /venv /venv
+COPY pyproject.toml uv.lock ./
+
 ENV UV_COMPILE_BYTECODE=0
 
-COPY src/ ./src/
-COPY tests/ ./tests/
+RUN mkdir -p src/app && \
+    touch src/app/__init__.py
 
 RUN uv sync --frozen --no-cache --group test && \
     uv cache clean
+
+COPY src/ ./src/
+COPY tests/ ./tests/
 
 USER appuser
 
@@ -85,21 +113,18 @@ CMD ["pytest", "tests/", \
      "--junitxml=report.xml"]
 
 
-# Prod - uncomment when ready to deploy
+# Prod — uncomment when ready to deploy
+# ============================================================
 # FROM base AS production
 #
-# # Copy pre-built venv from builder (deps cached separately from source)
 # COPY --from=builder /venv /venv
 # COPY src/ ./src/
-#
-# RUN uv cache clean
 #
 # USER appuser
 #
 # ENV PYTHONDONTWRITEBYTECODE=1 \
 #     PYTHONUNBUFFERED=1
-
-
+#
 # EXPOSE 8080
 #
 # CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080", "--workers", "2"]
