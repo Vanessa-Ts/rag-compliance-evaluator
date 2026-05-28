@@ -155,6 +155,40 @@ def test_evaluate_stream_404_when_job_not_found(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_query_stream_returns_token_and_done_events(client: TestClient) -> None:
+    query_resp = _make_query_response()
+
+    async def fake_stream_query(request):  # noqa: ARG001
+        yield {"event": "token", "data": {"token": "Workers "}}
+        yield {"event": "token", "data": {"token": "are entitled."}}
+        yield {"event": "done", "data": query_resp.model_dump()}
+
+    with patch("app.api.routes_rag.stream_query", side_effect=fake_stream_query):
+        resp = client.post("/query/stream", json={"question": "Max weekly hours?"})
+
+    assert resp.status_code == 200
+    assert "text/event-stream" in resp.headers["content-type"]
+    lines = resp.text.splitlines()
+    token_events = [l for l in lines if l == "event: token"]
+    done_events = [l for l in lines if l == "event: done"]
+    assert len(token_events) >= 1
+    assert len(done_events) == 1
+
+
+def test_query_stream_llm_unavailable_returns_error_event(client: TestClient) -> None:
+    from app.rag.llm import LLMUnavailable
+
+    async def failing_stream(request):  # noqa: ARG001
+        raise LLMUnavailable("no model")
+        yield  # make it an async generator
+
+    with patch("app.api.routes_rag.stream_query", side_effect=failing_stream):
+        resp = client.post("/query/stream", json={"question": "test"})
+
+    assert resp.status_code == 200
+    assert "event: error" in resp.text
+
+
 def test_evaluate_stream_returns_sse_events_for_completed_job(client: TestClient) -> None:
     from app.eval.runner import JobState
 

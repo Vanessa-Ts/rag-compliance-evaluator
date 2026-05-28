@@ -73,6 +73,8 @@ class EvalItemResult(BaseModel):
     hit: bool
     faithful: bool
     faithfulness_score: float
+    faithfulness_reasoning: str | None = None
+    context_relevance_score: float = 0.0
     latency_ms: float
     retrieved_doc_ids: list[str]
 
@@ -82,6 +84,7 @@ class EvalSummary(BaseModel):
     retrieval_precision_at_k: float
     hit_rate_at_k: float
     mean_faithfulness: float
+    mean_context_relevance: float = 0.0
     mean_latency_ms: float
     p95_latency_ms: float
 

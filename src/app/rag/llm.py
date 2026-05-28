@@ -8,11 +8,13 @@ checks happen for Ollama until ``generate()`` is invoked.
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING
 
 from app.core.config import settings
 
 if TYPE_CHECKING:
+    import anthropic as anthropic_sdk
     from langchain_core.language_models.chat_models import BaseChatModel
 
 
@@ -45,8 +47,64 @@ class LangChainGenerator:
             ) from exc
         return str(response.content)
 
+    async def astream(self, prompt: str) -> AsyncGenerator[str, None]:
+        """Stream tokens from the chat model for ``prompt``."""
+        from langchain_core.messages import HumanMessage
 
-def make_generator() -> LangChainGenerator:
+        async for chunk in self._chat_model.astream([HumanMessage(content=prompt)]):
+            if chunk.content:
+                yield chunk.content
+
+
+class AnthropicCachingGenerator:
+    """Anthropic generator with cache_control on system and context blocks."""
+
+    provider = "anthropic"
+
+    def __init__(self, client: anthropic_sdk.AsyncAnthropic, model: str) -> None:
+        self._client = client
+        self.model = model
+
+    async def generate(self, system: str, context: str, question: str) -> str:
+        """Non-streaming call with cache_control on system + context blocks."""
+        response = await self._client.messages.create(
+            model=self.model,
+            max_tokens=1024,
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": question},
+                ],
+            }],
+        )
+        block = response.content[0]
+        if not hasattr(block, "text"):
+            raise LLMUnavailable(f"Unexpected response block type: {type(block).__name__}")
+        return block.text
+
+    async def astream(
+        self, system: str, context: str, question: str
+    ) -> AsyncGenerator[str, None]:
+        """Streaming call with cache_control on system + context blocks."""
+        async with self._client.messages.stream(
+            model=self.model,
+            max_tokens=1024,
+            system=[{"type": "text", "text": system, "cache_control": {"type": "ephemeral"}}],
+            messages=[{
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": context, "cache_control": {"type": "ephemeral"}},
+                    {"type": "text", "text": question},
+                ],
+            }],
+        ) as stream:
+            async for text in stream.text_stream:
+                yield text
+
+
+def make_generator() -> LangChainGenerator | AnthropicCachingGenerator:
     """Build a generator for the configured ``settings.llm_provider``."""
     provider = settings.llm_provider
 
@@ -67,9 +125,15 @@ def make_generator() -> LangChainGenerator:
                 "ANTHROPIC_API_KEY is not set; cannot use the 'anthropic' "
                 "LLM provider."
             )
+        model = settings.generation_model or "claude-sonnet-4-6"
+        if settings.enable_prompt_caching:
+            import anthropic as anthropic_sdk
+
+            client = anthropic_sdk.AsyncAnthropic(api_key=settings.anthropic_api_key)
+            return AnthropicCachingGenerator(client, model)
+
         from langchain_anthropic import ChatAnthropic
 
-        model = settings.generation_model or "claude-haiku-4-5-20251001"
         chat_model = ChatAnthropic(
             api_key=settings.anthropic_api_key,
             model=model,

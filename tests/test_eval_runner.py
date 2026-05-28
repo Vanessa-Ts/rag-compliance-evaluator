@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.schemas import Citation, EvalItemResult, QueryResponse
+from app.schemas import Citation, EvalItemResult, EvalSummary, QueryResponse
 
 
 def _make_query_response() -> QueryResponse:
@@ -26,6 +26,35 @@ def _make_query_response() -> QueryResponse:
         provider="ollama",
         model="llama3.2:3b",
     )
+
+
+# ---------- schema fields ----------
+
+def test_eval_item_result_has_context_relevance_score() -> None:
+    result = EvalItemResult(
+        id="q1",
+        question="Q?",
+        jurisdiction="EU",
+        precision_at_k=0.5,
+        hit=True,
+        faithful=True,
+        faithfulness_score=0.9,
+        latency_ms=100.0,
+        retrieved_doc_ids=["doc1"],
+    )
+    assert result.context_relevance_score == 0.0
+
+
+def test_eval_summary_has_mean_context_relevance() -> None:
+    summary = EvalSummary(
+        n=1,
+        retrieval_precision_at_k=0.5,
+        hit_rate_at_k=1.0,
+        mean_faithfulness=0.9,
+        mean_latency_ms=100.0,
+        p95_latency_ms=100.0,
+    )
+    assert summary.mean_context_relevance == 0.0
 
 
 # ---------- job registry ----------
