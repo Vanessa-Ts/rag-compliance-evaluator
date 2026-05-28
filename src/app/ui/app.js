@@ -1,3 +1,9 @@
+function fillSample(text) {
+  const input = document.getElementById("question");
+  input.value = text;
+  input.focus();
+}
+
 async function askQuestion() {
   const question = document.getElementById("question").value.trim();
   if (!question) return;

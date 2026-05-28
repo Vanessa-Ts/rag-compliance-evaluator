@@ -90,3 +90,7 @@ class EvalResponse(BaseModel):
     per_question: list[EvalItemResult]
     config: dict[str, Any] = Field(default_factory=dict)
     timestamp: str
+
+
+class EvalStartResponse(BaseModel):
+    job_id: str

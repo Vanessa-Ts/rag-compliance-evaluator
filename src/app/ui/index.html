@@ -14,7 +14,13 @@
                 <span class="badge">v{{ version }}</span>
                 <span class="badge env-{{ environment }}">{{ environment }}</span>
             </div>
-            <p class="description">Multi-jurisdiction employment compliance Q&amp;A with retrieval evaluation</p>
+            <p class="hero-subtitle">Multi-jurisdiction employment compliance Q&amp;A<br>with retrieval precision &amp; faithfulness evaluation</p>
+            <div class="badge-row">
+                <span class="badge tech-badge">FastAPI</span>
+                <span class="badge tech-badge">ChromaDB</span>
+                <span class="badge tech-badge">LangChain</span>
+                <span class="badge tech-badge">sentence-transformers</span>
+            </div>
             <div class="links">
                 <a href="/docs" class="link-btn">API Docs</a>
             </div>
@@ -34,6 +40,12 @@
                     <option value="NL">Netherlands</option>
                 </select>
                 <button id="ask-btn" onclick="askQuestion()">Ask</button>
+            </div>
+            <div class="chip-row">
+                <span class="chip-label">Try:</span>
+                <button class="link-btn secondary chip" onclick="fillSample('What is the maximum weekly working time in the EU?')">Max EU working hours?</button>
+                <button class="link-btn secondary chip" onclick="fillSample('What are the GDPR right to erasure requirements for employers?')">GDPR right to erasure?</button>
+                <button class="link-btn secondary chip" onclick="fillSample('What is the notice period for termination in Germany?')">German notice period?</button>
             </div>
             <div id="answer-box" class="hidden">
                 <div class="answer-text" id="answer-text"></div>

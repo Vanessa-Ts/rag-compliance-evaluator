@@ -96,14 +96,22 @@ def test_query_llm_unavailable_returns_503(client: TestClient) -> None:
     assert resp.status_code == 503
 
 
-def test_evaluate_endpoint(client: TestClient) -> None:
-    with patch("app.api.routes_eval.run_eval", new=AsyncMock(return_value=_make_eval_response())):
+def test_evaluate_endpoint_returns_202(client: TestClient) -> None:
+    with (
+        patch("app.api.routes_eval.is_running", return_value=False),
+        patch("app.api.routes_eval.register_job", return_value="test-job-id"),
+        patch("app.api.routes_eval.run_eval_bg", new=AsyncMock(return_value=None)),
+    ):
         resp = client.post("/evaluate", json={})
-    assert resp.status_code == 200
+    assert resp.status_code == 202
     data = resp.json()
-    assert "summary" in data
-    assert data["summary"]["n"] == 2
-    assert "per_question" in data
+    assert data["job_id"] == "test-job-id"
+
+
+def test_evaluate_endpoint_409_when_running(client: TestClient) -> None:
+    with patch("app.api.routes_eval.is_running", return_value=True):
+        resp = client.post("/evaluate", json={})
+    assert resp.status_code == 409
 
 
 def test_evaluate_last_404_when_empty(client: TestClient) -> None:

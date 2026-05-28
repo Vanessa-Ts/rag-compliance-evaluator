@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
 from app.core.config import settings
@@ -19,23 +21,30 @@ from app.schemas import (
 )
 
 _LAST_RESULT: EvalResponse | None = None
-_CONCURRENCY = 4
+_RUNNING = False
 
 
-async def _eval_one(
-    item: object,
-    k: int,
-    generator: object,
-    sem: asyncio.Semaphore,
-) -> EvalItemResult:
+@dataclass
+class JobState:
+    n_total: int
+    results: list[EvalItemResult] = field(default_factory=list)
+    event: asyncio.Event = field(default_factory=asyncio.Event)
+    done: bool = False
+    response: EvalResponse | None = None
+    error: str | None = None
+
+
+_JOBS: dict[str, JobState] = {}
+
+
+async def _eval_one(item: object, k: int, generator: object) -> EvalItemResult:
     from app.eval.dataset import GoldenItem
 
     assert isinstance(item, GoldenItem)
 
-    async with sem:
-        resp = await answer_query(
-            QueryRequest(question=item.question, k=k, jurisdiction=item.jurisdiction)
-        )
+    resp = await answer_query(
+        QueryRequest(question=item.question, k=k, jurisdiction=item.jurisdiction)
+    )
 
     retrieved_doc_ids = [c.doc_id for c in resp.citations]
     prec = precision_at_k(retrieved_doc_ids, item.expected_doc_ids, k)
@@ -58,45 +67,70 @@ async def _eval_one(
     )
 
 
-async def run_eval(request: EvalRequest) -> EvalResponse:
-    global _LAST_RESULT
+def is_running() -> bool:
+    return _RUNNING
 
-    k = request.k if request.k is not None else settings.top_k
-    golden = load_golden(subset=request.subset)
 
-    generator = make_generator()
-    sem = asyncio.Semaphore(_CONCURRENCY)
+def register_job() -> str:
+    """Mark eval as running, create a job entry, and return its ID."""
+    global _RUNNING
+    _RUNNING = True
+    job_id = str(uuid.uuid4())
+    _JOBS[job_id] = JobState(n_total=0)
+    return job_id
 
-    results = await asyncio.gather(
-        *[_eval_one(item, k, generator, sem) for item in golden]
-    )
 
-    latencies = [r.latency_ms for r in results]
-    precisions = [r.precision_at_k for r in results]
-    faithfulness_scores = [r.faithfulness_score for r in results]
+def get_job(job_id: str) -> JobState | None:
+    return _JOBS.get(job_id)
 
-    summary = EvalSummary(
-        n=len(results),
-        retrieval_precision_at_k=sum(precisions) / len(precisions) if precisions else 0.0,
-        hit_rate_at_k=sum(1 for r in results if r.hit) / len(results) if results else 0.0,
-        mean_faithfulness=sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else 0.0,
-        mean_latency_ms=sum(latencies) / len(latencies) if latencies else 0.0,
-        p95_latency_ms=p95(latencies),
-    )
 
-    response = EvalResponse(
-        summary=summary,
-        per_question=list(results),
-        config={
-            "k": k,
-            "provider": generator.provider,
-            "model": generator.model,
-            "embedding_model": settings.embedding_model,
-        },
-        timestamp=datetime.now(timezone.utc).isoformat(),
-    )
-    _LAST_RESULT = response
-    return response
+async def run_eval_bg(job_id: str, request: EvalRequest) -> None:
+    global _LAST_RESULT, _RUNNING
+    job = _JOBS[job_id]
+    try:
+        k = request.k if request.k is not None else settings.top_k
+        golden = load_golden(subset=request.subset)
+        job.n_total = len(golden)
+        generator = make_generator()
+
+        for item in golden:
+            result = await _eval_one(item, k, generator)
+            job.results.append(result)
+            job.event.set()
+
+        results = job.results
+        latencies = [r.latency_ms for r in results]
+        precisions = [r.precision_at_k for r in results]
+        faithfulness_scores = [r.faithfulness_score for r in results]
+
+        summary = EvalSummary(
+            n=len(results),
+            retrieval_precision_at_k=sum(precisions) / len(precisions) if precisions else 0.0,
+            hit_rate_at_k=sum(1 for r in results if r.hit) / len(results) if results else 0.0,
+            mean_faithfulness=sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else 0.0,
+            mean_latency_ms=sum(latencies) / len(latencies) if latencies else 0.0,
+            p95_latency_ms=p95(latencies),
+        )
+
+        response = EvalResponse(
+            summary=summary,
+            per_question=list(results),
+            config={
+                "k": k,
+                "provider": generator.provider,
+                "model": generator.model,
+                "embedding_model": settings.embedding_model,
+            },
+            timestamp=datetime.now(timezone.utc).isoformat(),
+        )
+        job.response = response
+        _LAST_RESULT = response
+    except Exception as exc:
+        job.error = str(exc)
+    finally:
+        job.done = True
+        job.event.set()
+        _RUNNING = False
 
 
 def get_last() -> EvalResponse | None:
