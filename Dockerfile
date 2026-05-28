@@ -64,6 +64,11 @@ CMD ["sleep", "infinity"]
 # Test
 FROM base AS test
 
+# torch is ~1.5 GB; with UV_COMPILE_BYTECODE=1 (inherited from base) another
+# ~1.5 GB of .pyc files would be generated, exhausting disk on CI runners.
+# Tests don't benefit from precompiled bytecode, so disable it here.
+ENV UV_COMPILE_BYTECODE=0
+
 COPY src/ ./src/
 COPY tests/ ./tests/
 
