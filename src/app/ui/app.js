@@ -418,3 +418,16 @@ async function loadLastEval() {
     btn.textContent = "↺ View last result";
   }
 }
+
+// ── Explainer tab switching ───────────────────────────────────────────────────
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    const active = b.id === `tbtn-${name}`;
+    b.classList.toggle('active', active);
+    b.setAttribute('aria-selected', String(active));
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.classList.toggle('hidden', p.id !== `tab-${name}`);
+  });
+}

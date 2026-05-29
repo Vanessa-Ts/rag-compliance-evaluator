@@ -134,6 +134,205 @@
 
     </main>
 
+    <!-- Explainer section -->
+    <section class="explainer-section">
+
+        <!-- Header -->
+        <div class="explainer-header">
+            <h2>How it works</h2>
+            <p class="explainer-subtitle">A deep dive into the RAG pipeline and evaluation methodology</p>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar" role="tablist">
+            <button id="tbtn-pipeline" class="tab-btn active" role="tab" aria-selected="true"
+                aria-controls="tab-pipeline" onclick="switchTab('pipeline')">RAG Pipeline</button>
+            <button id="tbtn-evaluation" class="tab-btn" role="tab" aria-selected="false"
+                aria-controls="tab-evaluation" onclick="switchTab('evaluation')">Evaluation</button>
+        </div>
+
+        <!-- Tab 1: RAG Pipeline -->
+        <div id="tab-pipeline" class="tab-panel" role="tabpanel" aria-labelledby="tbtn-pipeline">
+
+            <div class="explainer-intro">
+                <p>This service implements <strong>Retrieval-Augmented Generation (RAG)</strong> — a pattern that grounds
+                LLM answers in a verified document corpus rather than parametric memory alone. At query time, relevant
+                chunks are retrieved from a vector store and injected into the prompt, giving the model authoritative
+                jurisdiction-specific context it can cite directly.</p>
+                <a class="paper-ref" href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">
+                    Lewis et al. 2020 · arXiv:2005.11401</a>
+            </div>
+
+            <figure class="diagram-wrap">
+                <img src="/static/svg/pipeline-overview.svg" alt="RAG pipeline overview diagram" loading="lazy">
+            </figure>
+
+            <div class="explainer-steps">
+
+                <!-- Step 1: Ingestion -->
+                <div class="explainer-step">
+                    <div class="step-number">1</div>
+                    <div class="step-body">
+                        <h3>Document ingestion &amp; chunking</h3>
+                        <p>Markdown employment-law documents are split into overlapping chunks
+                        (<code>CHUNK_SIZE</code> tokens, <code>CHUNK_OVERLAP</code> stride) and stored in a
+                        ChromaDB vector collection. Each chunk carries a <code>doc_id</code> and
+                        <code>jurisdiction</code> metadata field used for filtered retrieval.</p>
+                        <pre class="formula-box">chunk_i = doc[i·stride : i·stride + C],  stride = C − overlap</pre>
+                    </div>
+                </div>
+
+                <!-- Step 2: Embedding -->
+                <div class="explainer-step">
+                    <div class="step-number">2</div>
+                    <div class="step-body">
+                        <h3>Dense embedding</h3>
+                        <p>Both document chunks and user queries are mapped to the same dense vector space using a
+                        <strong>sentence-transformer</strong> model (default: <code>all-MiniLM-L6-v2</code>).
+                        Semantic similarity in this space correlates with topical relevance, enabling retrieval
+                        far beyond keyword overlap.</p>
+                        <figure class="diagram-wrap">
+                            <img src="/static/svg/embedding-concept.svg" alt="Embedding concept diagram" loading="lazy">
+                        </figure>
+                        <div class="paper-refs">
+                            <a class="paper-ref" href="https://arxiv.org/abs/1908.10084" target="_blank" rel="noopener">
+                                Reimers &amp; Gurevych 2019 · arXiv:1908.10084</a>
+                            <a class="paper-ref" href="https://arxiv.org/abs/2002.10957" target="_blank" rel="noopener">
+                                Wang et al. 2020 · arXiv:2002.10957</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3: Retrieval -->
+                <div class="explainer-step">
+                    <div class="step-number">3</div>
+                    <div class="step-body">
+                        <h3>Approximate nearest-neighbour retrieval</h3>
+                        <p>ChromaDB uses <strong>HNSW</strong> (Hierarchical Navigable Small World) graphs to find
+                        the top-<em>k</em> chunks closest to the query embedding in sub-linear time. An optional
+                        <code>jurisdiction</code> metadata filter narrows the search space before the ANN scan.</p>
+                        <pre class="formula-box">retrieve(q) = argmax_{c ∈ C_j} cos(embed(q), embed(c)),  |result| = k</pre>
+                        <div class="paper-refs">
+                            <a class="paper-ref" href="https://arxiv.org/abs/1603.09320" target="_blank" rel="noopener">
+                                Malkov &amp; Yashunin 2018 · arXiv:1603.09320</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4: Generation -->
+                <div class="explainer-step">
+                    <div class="step-number">4</div>
+                    <div class="step-body">
+                        <h3>Prompted generation</h3>
+                        <p>The retrieved chunks are assembled into a structured prompt (system prompt +
+                        context block + question block) and sent to the configured LLM (Ollama, OpenAI, or
+                        Anthropic). When <code>LLM_PROVIDER=anthropic</code> and
+                        <code>ENABLE_PROMPT_CACHING=true</code>, the system prompt and context block carry
+                        <code>cache_control: ephemeral</code> — repeated queries against the same corpus skip
+                        re-encoding those tokens, reducing latency and cost.</p>
+                        <div class="paper-refs">
+                            <a class="paper-ref" href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">
+                                Lewis et al. 2020 · arXiv:2005.11401</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /.explainer-steps -->
+        </div><!-- /#tab-pipeline -->
+
+        <!-- Tab 2: Evaluation -->
+        <div id="tab-evaluation" class="tab-panel hidden" role="tabpanel" aria-labelledby="tbtn-evaluation">
+
+            <div class="explainer-intro">
+                <p>Every run of the golden Q&amp;A set measures five complementary signals across
+                <strong>retrieval quality</strong>, <strong>generation faithfulness</strong>, and
+                <strong>latency</strong>. The judge-based metrics use an LLM-as-evaluator pattern from the
+                RAGAS framework — a structured prompt elicits a numeric score and chain-of-thought reasoning
+                that can be inspected per question.</p>
+                <a class="paper-ref" href="https://arxiv.org/abs/2309.15217" target="_blank" rel="noopener">
+                    Es et al. 2023 · arXiv:2309.15217</a>
+            </div>
+
+            <figure class="diagram-wrap">
+                <img src="/static/svg/eval-overview.svg" alt="Evaluation pipeline overview diagram" loading="lazy">
+            </figure>
+
+            <div class="metric-explainers">
+
+                <!-- Precision@k -->
+                <div class="metric-explainer">
+                    <h3>Precision@k</h3>
+                    <p>Of the <em>k</em> chunks returned by the retriever, what fraction contain the
+                    expected document? Precision@k rewards the retriever for ranking relevant chunks
+                    highly without penalising recall.</p>
+                    <pre class="formula-box">Precision@k = |{relevant docs} ∩ {top-k retrieved}| / k</pre>
+                    <div class="paper-refs">
+                        <a class="paper-ref" href="https://arxiv.org/abs/2005.11401" target="_blank" rel="noopener">
+                            Lewis et al. 2020 · arXiv:2005.11401</a>
+                    </div>
+                </div>
+
+                <!-- Hit@k -->
+                <div class="metric-explainer">
+                    <h3>Hit rate@k</h3>
+                    <p>A binary signal: did <em>at least one</em> of the top-<em>k</em> retrieved chunks
+                    come from the expected document? Hit@k is less strict than Precision@k and is a good
+                    proxy for whether the answer will be grounded at all.</p>
+                    <pre class="formula-box">Hit@k = 𝟙[∃ c ∈ top-k : doc(c) = doc_expected]</pre>
+                    <div class="paper-refs">
+                        <a class="paper-ref" href="https://arxiv.org/abs/2309.15217" target="_blank" rel="noopener">
+                            Es et al. 2023 · arXiv:2309.15217</a>
+                    </div>
+                </div>
+
+                <!-- Faithfulness -->
+                <div class="metric-explainer">
+                    <h3>Faithfulness</h3>
+                    <p>An LLM judge reads the generated answer alongside the retrieved context and
+                    decides whether every factual claim in the answer is supported by that context.
+                    When the provider is Anthropic, the judge uses <strong>tool use</strong> for
+                    structured output; otherwise a JSON-parsing fallback is used.</p>
+                    <figure class="diagram-wrap">
+                        <img src="/static/svg/judge-flow.svg" alt="LLM-as-judge faithfulness flow diagram" loading="lazy">
+                    </figure>
+                    <pre class="formula-box">faithfulness_score ∈ [0, 1],  1 = fully supported by context</pre>
+                    <div class="paper-refs">
+                        <a class="paper-ref" href="https://arxiv.org/abs/2306.05685" target="_blank" rel="noopener">
+                            Zheng et al. 2023 · arXiv:2306.05685</a>
+                        <a class="paper-ref" href="https://arxiv.org/abs/2309.15217" target="_blank" rel="noopener">
+                            Es et al. 2023 · arXiv:2309.15217</a>
+                    </div>
+                </div>
+
+                <!-- Context Relevance -->
+                <div class="metric-explainer">
+                    <h3>Context relevance</h3>
+                    <p>A RAGAS-style metric: the judge estimates what fraction of sentences in the
+                    retrieved context are actually needed to answer the question. Low context relevance
+                    means the retriever is returning noisy or tangential chunks that inflate the
+                    prompt without aiding generation.</p>
+                    <pre class="formula-box">context_relevance = |{sentences needed}| / |{sentences in context}|  ∈ [0, 1]</pre>
+                    <div class="paper-refs">
+                        <a class="paper-ref" href="https://arxiv.org/abs/2309.15217" target="_blank" rel="noopener">
+                            Es et al. 2023 · arXiv:2309.15217</a>
+                    </div>
+                </div>
+
+                <!-- p95 Latency -->
+                <div class="metric-explainer">
+                    <h3>p95 latency</h3>
+                    <p>The 95th-percentile end-to-end query latency across the golden set, measured
+                    in milliseconds. p95 rather than mean is reported because tail latency determines
+                    user-visible worst-case experience; outliers caused by cold cache misses or LLM
+                    queuing are surfaced here rather than averaged away.</p>
+                    <pre class="formula-box">p95 = percentile(latencies, 95),  target ≤ 1 000 ms</pre>
+                </div>
+
+            </div><!-- /.metric-explainers -->
+        </div><!-- /#tab-evaluation -->
+
+    </section><!-- /.explainer-section -->
+
     <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
     <script src="/static/app.js"></script>

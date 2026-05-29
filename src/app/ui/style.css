@@ -475,3 +475,141 @@ summary:hover { color: var(--subtle); }
     box-shadow: 0 4px 16px rgba(0,0,0,0.45);
     animation: toast-in 0.18s ease forwards;
 }
+
+/* ── Explainer section ── */
+.explainer-section {
+  max-width: 960px;
+  margin: 3rem auto 2rem;
+  padding: 0 1rem;
+}
+.explainer-header { text-align: center; margin-bottom: 1.5rem; }
+.explainer-header h2 { font-size: 1.5rem; color: #e2e8f0; }
+.explainer-subtitle { color: #a0aec0; font-size: 0.9rem; margin-top: 0.25rem; }
+
+/* ── Tab bar ── */
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 2px solid #252840;
+  margin-bottom: 1.5rem;
+}
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  padding: 0.6rem 1.2rem;
+  color: #a0aec0;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tab-btn:hover { color: #e2e8f0; }
+.tab-btn.active { color: #e2e8f0; border-bottom-color: #3b5bdb; font-weight: 600; }
+.tab-panel { animation: fadeIn 0.2s ease; }
+
+/* ── Steps ── */
+.explainer-steps { display: flex; flex-direction: column; gap: 2rem; }
+.explainer-step { display: flex; gap: 1.25rem; }
+.step-number {
+  flex-shrink: 0;
+  width: 2rem; height: 2rem;
+  border-radius: 50%;
+  background: #3b5bdb;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+  margin-top: 0.2rem;
+}
+.step-body h3 { font-size: 1rem; color: #e2e8f0; margin: 0 0 0.4rem; }
+.step-body p { color: #a0aec0; font-size: 0.875rem; line-height: 1.65; margin: 0 0 0.6rem; }
+
+/* ── Formula box ── */
+.formula-box {
+  background: #0f1117;
+  border-left: 3px solid #3b5bdb;
+  border-radius: 4px;
+  padding: 0.6rem 1rem;
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: #a0aec0;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 0.5rem 0;
+}
+
+/* ── Paper reference chips ── */
+.paper-refs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+.paper-ref {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  background: #1a1d2e;
+  border: 1px solid #3b5bdb44;
+  border-radius: 4px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.72rem;
+  color: #7c8cf8;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.paper-ref:hover { border-color: #3b5bdb; color: #a5b4fc; }
+.paper-ref::before { content: "📄"; font-size: 0.65rem; }
+
+/* ── Diagram wrapper ── */
+.diagram-wrap {
+  margin: 1.25rem 0;
+  overflow-x: auto;          /* horizontal scroll on small screens */
+}
+.diagram-wrap figcaption {
+  font-size: 0.72rem;
+  color: #4a4f6a;
+  text-align: center;
+  margin-top: 0.4rem;
+}
+.diagram-wrap svg { display: block; max-width: 100%; height: auto; }
+
+/* ── Metric explainer cards (eval tab) ── */
+.metric-explainers { display: flex; flex-direction: column; gap: 1.25rem; }
+.metric-explainer {
+  background: #1a1d2e;
+  border: 1px solid #252840;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+.metric-explainer h3 {
+  font-size: 0.95rem;
+  color: #e2e8f0;
+  margin: 0 0 0.35rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.metric-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  background: #3b5bdb22;
+  color: #7c8cf8;
+}
+.metric-explainer p { color: #a0aec0; font-size: 0.875rem; line-height: 1.6; margin: 0 0 0.5rem; }
+
+/* ── Section intro box ── */
+.explainer-intro {
+  background: #1a1d2e;
+  border: 1px solid #3b5bdb33;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.75rem;
+  color: #a0aec0;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+.explainer-intro strong { color: #e2e8f0; }
+
+/* ── Responsive ── */
+@media (max-width: 540px) {
+  .explainer-step { flex-direction: column; gap: 0.5rem; }
+  .step-number { width: 1.6rem; height: 1.6rem; font-size: 0.75rem; }
+  .tab-btn { padding: 0.5rem 0.8rem; font-size: 0.82rem; }
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }

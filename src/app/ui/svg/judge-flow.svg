@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" viewBox="0 0 760 130" role="img" aria-label="LLM-as-judge evaluation flow">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 8 3.5, 0 7" fill="#4a4f6a"/>
+    </marker>
+    <marker id="arr-dash" markerWidth="8" markerHeight="8" refX="7" refY="3.5" orient="auto">
+      <polygon points="0 0, 8 3.5, 0 7" fill="#4ade80"/>
+    </marker>
+  </defs>
+
+  <!-- Input box: Question -->
+  <rect x="10" y="10" width="110" height="36" rx="5" fill="#252840" stroke="#3b5bdb" stroke-width="1.5"/>
+  <text x="65" y="33" fill="#e2e8f0" font-size="13" font-family="sans-serif" text-anchor="middle">Question</text>
+
+  <!-- Input box: Context -->
+  <rect x="10" y="55" width="110" height="36" rx="5" fill="#252840" stroke="#3b5bdb" stroke-width="1.5"/>
+  <text x="65" y="78" fill="#e2e8f0" font-size="13" font-family="sans-serif" text-anchor="middle">Context</text>
+
+  <!-- Input box: Answer -->
+  <rect x="10" y="100" width="110" height="20" rx="5" fill="#252840" stroke="#3b5bdb" stroke-width="1.5"/>
+  <text x="65" y="114" fill="#e2e8f0" font-size="13" font-family="sans-serif" text-anchor="middle">Answer</text>
+
+  <!-- Converging arrows to Judge LLM -->
+  <line x1="120" y1="28" x2="248" y2="65" stroke="#4a4f6a" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="120" y1="73" x2="250" y2="73" stroke="#4a4f6a" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="120" y1="110" x2="248" y2="81" stroke="#4a4f6a" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- Judge LLM box -->
+  <rect x="250" y="43" width="140" height="60" rx="6" fill="#252840" stroke="#3b5bdb" stroke-width="1.5"/>
+  <text x="320" y="70" fill="#e2e8f0" font-size="13" font-family="sans-serif" text-anchor="middle">Judge LLM</text>
+  <text x="320" y="87" fill="#a0aec0" font-size="11" font-family="sans-serif" text-anchor="middle">structured output</text>
+
+  <!-- Dashed tool_use arrow -->
+  <line x1="390" y1="73" x2="458" y2="73" stroke="#4ade80" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arr-dash)"/>
+  <text x="422" y="65" fill="#4ade80" font-size="10" font-family="sans-serif" text-anchor="middle">tool_use</text>
+
+  <!-- JSON output box -->
+  <rect x="460" y="30" width="285" height="85" rx="6" fill="#0f1117" stroke="#4ade80" stroke-width="1.5"/>
+  <text x="602" y="57" fill="#4ade80" font-size="11" font-family="monospace" text-anchor="middle">{</text>
+  <text x="602" y="73" fill="#a0aec0" font-size="11" font-family="monospace" text-anchor="middle">  faithful: true,</text>
+  <text x="602" y="89" fill="#a0aec0" font-size="11" font-family="monospace" text-anchor="middle">  score: 0.92,</text>
+  <text x="602" y="105" fill="#a0aec0" font-size="11" font-family="monospace" text-anchor="middle">  reasoning: "…"  }</text>
+</svg>
