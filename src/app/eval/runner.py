@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 from app.core.config import settings
 from app.eval.dataset import load_golden
-from app.eval.metrics import hit_at_k, judge_faithfulness, p95, precision_at_k
+from app.eval.metrics import hit_at_k, judge_context_relevance, judge_faithfulness, p95, precision_at_k
 from app.rag.llm import make_generator
 from app.rag.pipeline import answer_query
 from app.schemas import (
@@ -51,9 +51,10 @@ async def _eval_one(item: object, k: int, generator: object) -> EvalItemResult:
     hit = hit_at_k(retrieved_doc_ids, item.expected_doc_ids, k)
 
     context = "\n".join(f"[{c.doc_id}] {c.snippet}" for c in resp.citations)
-    faithful, faith_score = await judge_faithfulness(
+    faithful, faith_score, reasoning = await judge_faithfulness(
         item.question, context, resp.answer, generator
     )
+    context_relevance = await judge_context_relevance(item.question, context, generator)
 
     return EvalItemResult(
         id=item.id,
@@ -63,6 +64,8 @@ async def _eval_one(item: object, k: int, generator: object) -> EvalItemResult:
         hit=hit,
         faithful=faithful,
         faithfulness_score=faith_score,
+        faithfulness_reasoning=reasoning,
+        context_relevance_score=context_relevance,
         latency_ms=resp.latency_ms,
         retrieved_doc_ids=retrieved_doc_ids,
     )
@@ -103,12 +106,14 @@ async def run_eval_bg(job_id: str, request: EvalRequest) -> None:
         latencies = [r.latency_ms for r in results]
         precisions = [r.precision_at_k for r in results]
         faithfulness_scores = [r.faithfulness_score for r in results]
+        relevance_scores = [r.context_relevance_score for r in results]
 
         summary = EvalSummary(
             n=len(results),
             retrieval_precision_at_k=sum(precisions) / len(precisions) if precisions else 0.0,
             hit_rate_at_k=sum(1 for r in results if r.hit) / len(results) if results else 0.0,
             mean_faithfulness=sum(faithfulness_scores) / len(faithfulness_scores) if faithfulness_scores else 0.0,
+            mean_context_relevance=sum(relevance_scores) / len(relevance_scores) if relevance_scores else 0.0,
             mean_latency_ms=sum(latencies) / len(latencies) if latencies else 0.0,
             p95_latency_ms=p95(latencies),
         )

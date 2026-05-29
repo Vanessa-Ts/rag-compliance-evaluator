@@ -10,6 +10,32 @@ import pytest
 from app.schemas import QueryRequest, RetrievedChunk
 
 
+# ---------- prompt helpers ----------
+
+def test_system_prompt_contains_cot_instructions() -> None:
+    from app.rag.pipeline import _system_prompt
+
+    sp = _system_prompt()
+    assert "step by step" in sp
+    assert "Identify" in sp
+
+
+def test_context_block_format() -> None:
+    from app.rag.pipeline import _context_block
+
+    chunks = [_make_chunk(doc_id="doc-a", text="Text A"), _make_chunk(doc_id="doc-b", text="Text B")]
+    result = _context_block(chunks)
+    assert result.startswith("Context:\n")
+    assert "[doc-a] Text A" in result
+    assert "[doc-b] Text B" in result
+
+
+def test_question_block_format() -> None:
+    from app.rag.pipeline import _question_block
+
+    assert _question_block("How much leave?") == "Question: How much leave?"
+
+
 # ---------- pipeline ----------
 
 def _make_chunk(**kwargs: object) -> RetrievedChunk:

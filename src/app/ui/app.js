@@ -94,6 +94,30 @@ function renderCitations(citations) {
   container.appendChild(list);
 }
 
+// ── SSE stream parser ─────────────────────────────────────────────────────────
+
+async function* readSSE(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop();
+    for (const part of parts) {
+      const lines = part.trim().split("\n");
+      let eventType = "message", data = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) eventType = line.slice(7).trim();
+        if (line.startsWith("data: "))  data      = line.slice(6);
+      }
+      if (data) yield { eventType, data: JSON.parse(data) };
+    }
+  }
+}
+
 // ── Ask ───────────────────────────────────────────────────────────────────────
 
 async function askQuestion() {
@@ -102,13 +126,19 @@ async function askQuestion() {
 
   const jurisdiction = document.getElementById("jurisdiction").value || null;
   const btn = document.getElementById("ask-btn");
+  const answerEl = document.getElementById("answer-text");
+  const box = document.getElementById("answer-box");
 
   btn.disabled = true;
   btn.textContent = "Asking…";
   showSkeleton();
+  hideEl("ask-error");
+
+  let accumulated = "";
+  let firstToken = true;
 
   try {
-    const resp = await fetch("/query", {
+    const resp = await fetch("/query/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, k: 4, jurisdiction }),
@@ -117,22 +147,32 @@ async function askQuestion() {
       const err = await resp.json();
       throw new Error(err.detail || resp.statusText);
     }
-    const data = await resp.json();
 
-    const answerEl = document.getElementById("answer-text");
-    answerEl.innerHTML = (typeof marked !== "undefined")
-      ? marked.parse(data.answer)
-      : escHtml(data.answer).replace(/\n/g, "<br>");
+    for await (const { eventType, data } of readSSE(resp)) {
+      if (eventType === "token") {
+        if (firstToken) {
+          hideSkeleton();
+          answerEl.textContent = "";
+          box.classList.remove("hidden", "fadein");
+          void box.offsetWidth;
+          box.classList.add("fadein");
+          firstToken = false;
+        }
+        accumulated += data.token;
+        answerEl.textContent = accumulated;
 
-    document.getElementById("answer-meta").textContent =
-      `Provider: ${data.provider} · Model: ${data.model} · ${data.latency_ms.toFixed(0)} ms`;
+      } else if (eventType === "done") {
+        answerEl.innerHTML = (typeof marked !== "undefined")
+          ? marked.parse(data.answer)
+          : escHtml(data.answer).replace(/\n/g, "<br>");
+        document.getElementById("answer-meta").textContent =
+          `Provider: ${data.provider} · Model: ${data.model} · ${data.latency_ms.toFixed(0)} ms`;
+        renderCitations(data.citations);
 
-    renderCitations(data.citations);
-
-    const box = document.getElementById("answer-box");
-    box.classList.remove("hidden", "fadein");
-    void box.offsetWidth;
-    box.classList.add("fadein");
+      } else if (eventType === "error") {
+        throw new Error(data.detail || "Stream error");
+      }
+    }
   } catch (e) {
     document.getElementById("ask-error").textContent = e.message;
     showEl("ask-error");
@@ -230,10 +270,11 @@ function toggleRow(i) {
 function renderEvalResults(summary, config, timestamp, perQuestion, animate = true) {
   const s = summary;
 
-  colorMetricCard("mc-precision", s.retrieval_precision_at_k, 0.8, 0.5);
-  colorMetricCard("mc-hitrate",   s.hit_rate_at_k,            0.8, 0.5);
-  colorMetricCard("mc-faithful",  s.mean_faithfulness,        0.75, 0.5);
-  colorMetricCard("mc-latency",   s.p95_latency_ms,           1000, 2500, true);
+  colorMetricCard("mc-precision", s.retrieval_precision_at_k,        0.8,  0.5);
+  colorMetricCard("mc-hitrate",   s.hit_rate_at_k,                   0.8,  0.5);
+  colorMetricCard("mc-faithful",  s.mean_faithfulness,               0.75, 0.5);
+  colorMetricCard("mc-relevance", s.mean_context_relevance ?? 0,     0.75, 0.5);
+  colorMetricCard("mc-latency",   s.p95_latency_ms,                  1000, 2500, true);
 
   const set = (id, val, suffix) => {
     const el = document.getElementById(id);
@@ -241,10 +282,11 @@ function renderEvalResults(summary, config, timestamp, perQuestion, animate = tr
     else el.textContent = (suffix === " ms" ? val.toFixed(0) : val.toFixed(1)) + suffix;
   };
 
-  set("mv-precision", s.retrieval_precision_at_k * 100, "%");
-  set("mv-hitrate",   s.hit_rate_at_k * 100,            "%");
-  set("mv-faithful",  s.mean_faithfulness * 100,        "%");
-  set("mv-latency",   s.p95_latency_ms,                 " ms");
+  set("mv-precision", s.retrieval_precision_at_k * 100,    "%");
+  set("mv-hitrate",   s.hit_rate_at_k * 100,               "%");
+  set("mv-faithful",  s.mean_faithfulness * 100,           "%");
+  set("mv-relevance", (s.mean_context_relevance ?? 0) * 100, "%");
+  set("mv-latency",   s.p95_latency_ms,                    " ms");
 
   document.getElementById("eval-meta").textContent =
     `${s.n} questions · Provider: ${config.provider} · Model: ${config.model} · k=${config.k} · ${timestamp}`;
@@ -254,6 +296,8 @@ function renderEvalResults(summary, config, timestamp, perQuestion, animate = tr
     const rows = perQuestion.map((q, i) => {
       const q_short = q.question.length > 52 ? q.question.slice(0, 52) + "…" : q.question;
       const docIds = (q.retrieved_doc_ids || []).join(", ") || "—";
+      const ctxRel = (q.context_relevance_score ?? 0) * 100;
+      const reasoning = q.faithfulness_reasoning ? escHtml(q.faithfulness_reasoning) : "";
       return `
         <tr class="data-row">
           <td><button class="expand-btn" onclick="toggleRow(${i})" id="expand-${i}" aria-expanded="false" aria-label="Expand">›</button></td>
@@ -262,10 +306,11 @@ function renderEvalResults(summary, config, timestamp, perQuestion, animate = tr
           <td data-sort="${q.precision_at_k}">${(q.precision_at_k * 100).toFixed(0)}%</td>
           <td class="${q.hit ? 'pass' : 'fail'}" data-sort="${q.hit ? 1 : 0}">${q.hit ? "✓" : "✗"}</td>
           <td class="${q.faithful ? 'pass' : 'fail'}" data-sort="${q.faithful ? 1 : 0}">${q.faithful ? "✓" : "✗"}</td>
+          <td data-sort="${ctxRel}">${ctxRel.toFixed(0)}%</td>
           <td data-sort="${q.latency_ms}">${q.latency_ms.toFixed(0)}</td>
         </tr>
         <tr class="expanded-row" id="expanded-${i}">
-          <td colspan="7">Retrieved: ${escHtml(docIds)}</td>
+          <td colspan="8">Retrieved: ${escHtml(docIds)}${reasoning ? `<br><em>Faithfulness: ${reasoning}</em>` : ""}</td>
         </tr>`;
     }).join("");
 
@@ -278,7 +323,8 @@ function renderEvalResults(summary, config, timestamp, perQuestion, animate = tr
           <th class="sortable" scope="col" onclick="sortTable(3)">Prec@k<span class="sort-icon">⇅</span></th>
           <th class="sortable" scope="col" onclick="sortTable(4)">Hit<span class="sort-icon">⇅</span></th>
           <th class="sortable" scope="col" onclick="sortTable(5)">Faithful<span class="sort-icon">⇅</span></th>
-          <th class="sortable" scope="col" onclick="sortTable(6)">Lat ms<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(6)">Ctx rel<span class="sort-icon">⇅</span></th>
+          <th class="sortable" scope="col" onclick="sortTable(7)">Lat ms<span class="sort-icon">⇅</span></th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>

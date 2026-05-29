@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = None
     openai_api_key: str | None = None
     generation_model: str | None = None  # provider-specific override
+    enable_prompt_caching: bool = True
 
     # --- Embeddings / vector store ---
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
