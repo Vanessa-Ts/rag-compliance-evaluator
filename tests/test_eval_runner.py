@@ -189,7 +189,7 @@ async def test_run_eval_bg_populates_job_and_sets_last() -> None:
 
     with (
         patch("app.eval.runner.load_golden", return_value=[golden_item]),
-        patch("app.eval.runner.make_generator", return_value=MagicMock(provider="test", model="test")),
+        patch("app.eval.runner.get_generator", return_value=MagicMock(provider="test", model="test")),
         patch("app.eval.runner._eval_one", new=AsyncMock(return_value=fake_result)),
     ):
         await runner_mod.run_eval_bg(job_id, EvalRequest())
