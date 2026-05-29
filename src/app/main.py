@@ -22,13 +22,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.version,
         settings.environment,
     )
-    # Warm embeddings model and auto-ingest corpus if the collection is empty.
+    # Warm embeddings model, LLM client, and auto-ingest corpus if the collection is empty.
     try:
         from app.rag.embeddings import get_embeddings
         from app.rag.ingest import ingest
+        from app.rag.llm import get_generator
         from app.rag.store import collection_count
 
         get_embeddings()  # warm the model so first query is fast
+        get_generator()   # construct the LLM client once; cached for all requests
         if collection_count() == 0:
             logger.info("Collection empty — running initial corpus ingest...")
             result = await ingest()

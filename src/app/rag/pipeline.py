@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from collections.abc import AsyncGenerator
 
-from app.rag.llm import AnthropicCachingGenerator, make_generator
+from app.rag.llm import AnthropicCachingGenerator, get_generator
 from app.rag.retriever import get_retriever
 from app.schemas import Citation, QueryRequest, QueryResponse, RetrievedChunk
 
@@ -54,7 +54,7 @@ def _chunks_to_citations(chunks: list[RetrievedChunk]) -> list[Citation]:
 async def stream_query(request: QueryRequest) -> AsyncGenerator[dict, None]:
     t0 = time.monotonic()
     chunks = await get_retriever().retrieve(request.question, request.k, request.jurisdiction)
-    generator = make_generator()
+    generator = get_generator()
 
     accumulated = ""
     if isinstance(generator, AnthropicCachingGenerator):
@@ -88,7 +88,7 @@ async def answer_query(request: QueryRequest) -> QueryResponse:
         request.question, request.k, request.jurisdiction
     )
 
-    generator = make_generator()
+    generator = get_generator()
     if isinstance(generator, AnthropicCachingGenerator):
         answer = await generator.generate(
             system=_system_prompt(),

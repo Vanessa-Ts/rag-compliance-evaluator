@@ -29,3 +29,19 @@ class Generator(Protocol):
     model: str
 
     async def generate(self, prompt: str) -> str: ...
+
+
+@runtime_checkable
+class StructuredGenerator(Protocol):
+    """Generator that supports tool-use / structured output calls."""
+
+    model: str
+
+    async def tool_judge(
+        self,
+        prompt: str,
+        tool: dict,
+        max_tokens: int = 256,
+    ) -> dict: ...
+    # Returns the tool_use block's `.input` dict on success.
+    # Raises on failure — callers are responsible for catching.

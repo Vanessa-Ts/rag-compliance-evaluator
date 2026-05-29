@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -213,3 +213,66 @@ async def test_judge_context_relevance_fallback_json() -> None:
 
     score = await judge_context_relevance("Q?", "some context", _ScoreGenerator())
     assert score == pytest.approx(0.75)
+
+
+# ---------- StructuredGenerator protocol — decoupled judge paths ----------
+
+class _MockStructuredGenerator:
+    """Minimal StructuredGenerator that doesn't depend on AnthropicCachingGenerator."""
+
+    model = "mock-model"
+
+    def __init__(self, tool_judge_result: dict) -> None:
+        self.tool_judge = AsyncMock(return_value=tool_judge_result)
+
+
+@pytest.mark.asyncio
+async def test_judge_faithfulness_uses_tool_judge_on_structured_generator() -> None:
+    from app.eval.metrics import judge_faithfulness
+
+    gen = _MockStructuredGenerator({"faithful": True, "score": 0.88, "reasoning": "all good"})
+    faithful, score, reasoning = await judge_faithfulness("Q?", "ctx", "ans", gen)
+
+    assert faithful is True
+    assert score == pytest.approx(0.88)
+    assert reasoning == "all good"
+    gen.tool_judge.assert_awaited_once()
+    call_args = gen.tool_judge.call_args
+    assert call_args.args[1]["name"] == "faithfulness_verdict"
+
+
+@pytest.mark.asyncio
+async def test_judge_faithfulness_structured_generator_exception_returns_false() -> None:
+    from app.eval.metrics import judge_faithfulness
+
+    gen = _MockStructuredGenerator({})
+    gen.tool_judge.side_effect = RuntimeError("tool call failed")
+
+    faithful, score, reasoning = await judge_faithfulness("Q?", "ctx", "ans", gen)
+    assert faithful is False
+    assert score == 0.0
+    assert reasoning is None
+
+
+@pytest.mark.asyncio
+async def test_judge_context_relevance_uses_tool_judge_on_structured_generator() -> None:
+    from app.eval.metrics import judge_context_relevance
+
+    gen = _MockStructuredGenerator({"score": 0.72, "reasoning": "mostly relevant"})
+    score = await judge_context_relevance("Q?", "some context", gen)
+
+    assert score == pytest.approx(0.72)
+    gen.tool_judge.assert_awaited_once()
+    call_args = gen.tool_judge.call_args
+    assert call_args.args[1]["name"] == "context_relevance_verdict"
+
+
+@pytest.mark.asyncio
+async def test_judge_context_relevance_structured_generator_exception_returns_zero() -> None:
+    from app.eval.metrics import judge_context_relevance
+
+    gen = _MockStructuredGenerator({})
+    gen.tool_judge.side_effect = RuntimeError("tool call failed")
+
+    score = await judge_context_relevance("Q?", "ctx", gen)
+    assert score == 0.0

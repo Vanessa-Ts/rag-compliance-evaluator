@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from app.core.config import settings
 from app.eval.dataset import load_golden
 from app.eval.metrics import hit_at_k, judge_context_relevance, judge_faithfulness, p95, precision_at_k
-from app.rag.llm import make_generator
+from app.rag.llm import get_generator
 from app.rag.pipeline import answer_query
 from app.schemas import (
     EvalItemResult,
@@ -95,7 +95,7 @@ async def run_eval_bg(job_id: str, request: EvalRequest) -> None:
         k = request.k if request.k is not None else settings.top_k
         golden = load_golden(subset=request.subset)
         job.n_total = len(golden)
-        generator = make_generator()
+        generator = get_generator()
 
         for item in golden:
             result = await _eval_one(item, k, generator)

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+from app.rag.interfaces import Generator, StructuredGenerator
+
 
 def precision_at_k(retrieved_doc_ids: list[str], expected: list[str], k: int) -> float:
     """Fraction of top-k retrieved docs that are in the expected set."""
@@ -90,27 +92,16 @@ async def judge_faithfulness(
     generator: object,
 ) -> tuple[bool, float, str | None]:
     """Return (faithful, score, reasoning) using the generator as an LLM judge."""
-    from app.rag.llm import AnthropicCachingGenerator
-
-    if isinstance(generator, AnthropicCachingGenerator):
+    if isinstance(generator, StructuredGenerator):
         prompt = _JUDGE_PROMPT.format(question=question, context=context, answer=answer)
         try:
-            response = await generator._client.messages.create(  # type: ignore[call-overload]
-                model=generator.model,
-                max_tokens=256,
-                tools=[_FAITHFULNESS_TOOL],
-                tool_choice={"type": "any"},
-                messages=[{"role": "user", "content": prompt}],
-            )
-            tool_input = next(b for b in response.content if b.type == "tool_use").input
+            tool_input = await generator.tool_judge(prompt, _FAITHFULNESS_TOOL, max_tokens=256)
             faithful = bool(tool_input["faithful"])
             score = max(0.0, min(1.0, float(tool_input["score"])))
             reasoning = tool_input.get("reasoning")
             return faithful, score, reasoning
         except Exception:
             return False, 0.0, None
-
-    from app.rag.interfaces import Generator
 
     if not isinstance(generator, Generator):
         return False, 0.0, None
@@ -153,24 +144,13 @@ async def judge_context_relevance(
     question: str, context: str, generator: object
 ) -> float:
     """Returns a 0–1 score: how relevant the retrieved context is for answering question."""
-    from app.rag.llm import AnthropicCachingGenerator
-
-    if isinstance(generator, AnthropicCachingGenerator):
+    if isinstance(generator, StructuredGenerator):
         prompt = _CONTEXT_RELEVANCE_JUDGE_PROMPT.format(question=question, context=context)
         try:
-            response = await generator._client.messages.create(  # type: ignore[call-overload]
-                model=generator.model,
-                max_tokens=128,
-                tools=[_CONTEXT_RELEVANCE_TOOL],
-                tool_choice={"type": "any"},
-                messages=[{"role": "user", "content": prompt}],
-            )
-            tool_input = next(b for b in response.content if b.type == "tool_use").input
+            tool_input = await generator.tool_judge(prompt, _CONTEXT_RELEVANCE_TOOL, max_tokens=128)
             return max(0.0, min(1.0, float(tool_input["score"])))
         except Exception:
             return 0.0
-
-    from app.rag.interfaces import Generator
 
     if not isinstance(generator, Generator):
         return 0.0

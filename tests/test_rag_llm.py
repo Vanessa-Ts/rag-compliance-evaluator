@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from app.rag.interfaces import StructuredGenerator
 from app.rag.llm import AnthropicCachingGenerator, LLMUnavailable, LangChainGenerator, make_generator
 
 
@@ -106,6 +107,43 @@ def test_make_generator_anthropic_caching_returns_caching_generator() -> None:
     assert isinstance(gen, AnthropicCachingGenerator)
     assert gen.model == "claude-sonnet-4-6"
     assert gen._client is fake_client
+
+
+# ---------- AnthropicCachingGenerator protocol conformance ----------
+
+def test_anthropic_caching_generator_satisfies_structured_generator_protocol() -> None:
+    mock_client = MagicMock()
+    gen = AnthropicCachingGenerator(mock_client, "claude-sonnet-4-6")
+    assert isinstance(gen, StructuredGenerator)
+
+
+def test_langchain_generator_does_not_satisfy_structured_generator_protocol() -> None:
+    fake_chat = MagicMock()
+    gen = LangChainGenerator(fake_chat, provider="ollama", model="llama3.2:3b")
+    assert not isinstance(gen, StructuredGenerator)
+
+
+@pytest.mark.asyncio
+async def test_anthropic_caching_generator_tool_judge_returns_input() -> None:
+    tool_block = MagicMock()
+    tool_block.type = "tool_use"
+    tool_block.input = {"faithful": True, "score": 0.9, "reasoning": "ok"}
+
+    mock_response = MagicMock()
+    mock_response.content = [tool_block]
+
+    mock_client = MagicMock()
+    mock_client.messages.create = AsyncMock(return_value=mock_response)
+
+    gen = AnthropicCachingGenerator(mock_client, "claude-sonnet-4-6")
+    tool = {"name": "faithfulness_verdict", "input_schema": {}}
+    result = await gen.tool_judge("some prompt", tool, max_tokens=256)
+
+    assert result == {"faithful": True, "score": 0.9, "reasoning": "ok"}
+    call_kwargs = mock_client.messages.create.call_args.kwargs
+    assert call_kwargs["tool_choice"] == {"type": "any"}
+    assert call_kwargs["tools"] == [tool]
+    assert call_kwargs["max_tokens"] == 256
 
 
 # ---------- AnthropicCachingGenerator.generate ----------

@@ -9,6 +9,7 @@ checks happen for Ollama until ``generate()`` is invoked.
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from app.core.config import settings
@@ -84,6 +85,22 @@ class AnthropicCachingGenerator:
             raise LLMUnavailable(f"Unexpected response block type: {type(block).__name__}")
         return block.text
 
+    async def tool_judge(
+        self,
+        prompt: str,
+        tool: dict,
+        max_tokens: int = 256,
+    ) -> dict:
+        """Tool-use call for structured judge output; returns the tool_use block's input dict."""
+        response = await self._client.messages.create(
+            model=self.model,
+            max_tokens=max_tokens,
+            tools=[tool],
+            tool_choice={"type": "any"},
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return next(b for b in response.content if b.type == "tool_use").input
+
     async def astream(
         self, system: str, context: str, question: str
     ) -> AsyncGenerator[str, None]:
@@ -158,3 +175,8 @@ def make_generator() -> LangChainGenerator | AnthropicCachingGenerator:
         return LangChainGenerator(chat_model, provider="openai", model=model)
 
     raise LLMUnavailable(f"Unsupported LLM provider: {provider!r}")
+
+
+@lru_cache(maxsize=1)
+def get_generator() -> LangChainGenerator | AnthropicCachingGenerator:
+    return make_generator()

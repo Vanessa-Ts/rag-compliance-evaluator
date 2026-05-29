@@ -56,7 +56,7 @@ async def test_pipeline_returns_answer_and_citations() -> None:
     chunk = _make_chunk()
     with (
         patch("app.rag.pipeline.get_retriever") as mock_ret,
-        patch("app.rag.pipeline.make_generator") as mock_gen,
+        patch("app.rag.pipeline.get_generator") as mock_gen,
     ):
         mock_ret.return_value.retrieve = AsyncMock(return_value=[chunk])
         mock_gen.return_value.generate = AsyncMock(return_value="4 weeks annual leave.")
@@ -78,7 +78,7 @@ async def test_pipeline_deduplicates_citations_by_doc_id() -> None:
     chunks = [_make_chunk(score=0.9), _make_chunk(score=0.7)]
     with (
         patch("app.rag.pipeline.get_retriever") as mock_ret,
-        patch("app.rag.pipeline.make_generator") as mock_gen,
+        patch("app.rag.pipeline.get_generator") as mock_gen,
     ):
         mock_ret.return_value.retrieve = AsyncMock(return_value=chunks)
         mock_gen.return_value.generate = AsyncMock(return_value="4 weeks.")
